@@ -17,6 +17,7 @@
 #import "FrameReader.h"
 
 #define kNumReaderObjects 20
+#define kFPS 4
 
 typedef struct {
 	int fd;
@@ -35,6 +36,8 @@ static CVDisplayLinkRef mDisplayLink;
 static CGRect mDisplayRect;
 static QueueController *mFrameQueueController;
 static ScreenCapTheoraAppDelegate *mSelf;
+static NSTimeInterval mLastTime;
+static NSTimeInterval mFPSInterval;
 volatile static int mFramesLeft = 0;
 BOOL mShouldStop;
 
@@ -50,10 +53,15 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 									CVOptionFlags *flagsOut,
 									void *displayLinkContext)
 {
+	NSTimeInterval time = [NSDate timeIntervalSinceReferenceDate];
+	if (time - mLastTime < mFPSInterval)
+		return kCVReturnSuccess;
+
+	mLastTime = time;
+
 	NSAutoreleasePool *pool = [NSAutoreleasePool new];
 	
 	FrameReader *freeReader = [mFrameQueueController removeOldestItemFromFreeQ];
-	NSTimeInterval time = [NSDate timeIntervalSinceReferenceDate];
 	[freeReader setBufferReadTime:time];
 	[freeReader readScreenAsyncOnSeparateThread];
 
@@ -208,8 +216,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
     mTheora.ti.pic_height = height;
     mTheora.ti.pic_x = 0; //(mTheora.ti.frame_width - width) >> 1 & ~1;
     mTheora.ti.pic_y = 0; //(mTheora.ti.frame_height - height) >> 1 & ~1;
-	// TODO: Make FPS a named constant.
-    mTheora.ti.fps_numerator = 24;
+    mTheora.ti.fps_numerator = kFPS;
     mTheora.ti.fps_denominator = 1;
 
 	NSLog(@"Frame size is %dx%d, with the picture offset at (%d, %d).", mTheora.ti.frame_width, mTheora.ti.frame_height, mTheora.ti.pic_x, mTheora.ti.pic_y);
@@ -269,12 +276,15 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 		writeTheoraPage();
 	}
 
+	mLastTime = [NSDate timeIntervalSinceReferenceDate];
+	mFPSInterval = 1.0 / kFPS;
+
 	CVDisplayLinkCreateWithCGDisplay(kCGDirectMainDisplay, &mDisplayLink);
 	NSAssert(mDisplayLink != NULL, @"Couldn't create display link for the main display.");
 	CVDisplayLinkSetCurrentCGDisplay(mDisplayLink, kCGDirectMainDisplay);
 	CVDisplayLinkSetOutputCallback(mDisplayLink, displayLinkCallback, NULL);
 	CVDisplayLinkStart(mDisplayLink);
-	
+
 	NSLog(@"Initialized.");
 }
 
