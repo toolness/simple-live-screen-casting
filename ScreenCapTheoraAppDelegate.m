@@ -35,8 +35,8 @@ static CVDisplayLinkRef mDisplayLink;
 static CGRect mDisplayRect;
 static QueueController *mFrameQueueController;
 static ScreenCapTheoraAppDelegate *mSelf;
-volatile static int framesLeft = 0;
-BOOL shouldStop;
+volatile static int mFramesLeft = 0;
+BOOL mShouldStop;
 
 static void writeTheoraPage() {
 	write(mTheora.fd, mTheora.og.header, mTheora.og.header_len);
@@ -59,7 +59,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 
 	FrameReader *filledReader = [mFrameQueueController removeOldestItemFromFilledQ];
 	if (filledReader) {
-		framesLeft++;
+		mFramesLeft++;
 		[NSThread detachNewThreadSelector:@selector(processFrameSynchronized:) toTarget:mSelf withObject:filledReader];
 	}
 
@@ -76,8 +76,8 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 	NSAutoreleasePool *pool = [NSAutoreleasePool new];
 
 	@synchronized([ScreenCapTheoraAppDelegate class]) {
-		if (shouldStop) {
-			framesLeft--;
+		if (mShouldStop) {
+			mFramesLeft--;
 			return;
 			//[pool release];
 		}
@@ -157,7 +157,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 		[mFrameQueueController addItemToFreeQ:reader];			
 	}
 
-	framesLeft--;
+	mFramesLeft--;
 
 	[pool release];
 }
@@ -284,9 +284,9 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 	CVDisplayLinkRelease(mDisplayLink);
 	mDisplayLink = NULL;
 
-	shouldStop = YES;
+	mShouldStop = YES;
 	
-	while (framesLeft) {}
+	while (mFramesLeft) {}
 
 	th_encode_free(mTheora.th);
 
