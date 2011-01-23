@@ -73,7 +73,7 @@ Version: 1.0
 //
 // Each QueueController object contains a "free" queue and
 // a "filled" queue.
-- (id) initWithReaderObjects:(unsigned)objectCount aContext:(NSOpenGLContext*)context pixelsWide:(unsigned)width pixelsHigh:(unsigned)height 
+- (id) initWithReaderObjects:(unsigned)objectCount aContext:(NSOpenGLContext*)context pixelsWide:(unsigned)width pixelsHigh:(unsigned)height xOffset:(unsigned)xOfs yOffset:(unsigned)yOfs
 {
 	if (self = [super init])
 	{
@@ -89,7 +89,7 @@ Version: 1.0
 		for (i=0; i<objectCount; ++i)
 		{
 			FrameReader *readerObj;
-			readerObj = [[FrameReader alloc] initWithOpenGLContext:context pixelsWide:width pixelsHigh:height queueController:self];
+			readerObj = [[FrameReader alloc] initWithOpenGLContext:context pixelsWide:width pixelsHigh:height xOffset:xOfs yOffset:yOfs queueController:self];
 			if (readerObj)
 			{
 				[self addItemToFreeQ:readerObj];

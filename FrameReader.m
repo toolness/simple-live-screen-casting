@@ -174,7 +174,7 @@ Copyright (C) 2007 Apple Inc. All Rights Reserved.
 
 // Initialize a FrameReader object -- given an OpenGL context, screen 
 // width & height values and a QueueController object
-- (id) initWithOpenGLContext:(NSOpenGLContext*)context pixelsWide:(unsigned)width pixelsHigh:(unsigned)height queueController:(QueueController *)controller
+- (id) initWithOpenGLContext:(NSOpenGLContext*)context pixelsWide:(unsigned)width pixelsHigh:(unsigned)height xOffset:(unsigned)xOfs yOffset:(unsigned)yOfs queueController:(QueueController *)controller
 {
 	//IMPORTANT: We use the macros provided by <OpenGL/CGLMacro.h> which provide better performances and allows us not to bother with making sure the current context is valid
 	CGLContextObj	cgl_ctx = [context CGLContextObj];
@@ -201,6 +201,8 @@ Copyright (C) 2007 Apple Inc. All Rights Reserved.
 		mGlContext = [context retain];
 		mWidth = width;
 		mHeight = height;
+		mXOfs = xOfs;
+		mYOfs = yOfs;
 		
 		attributes = [NSMutableDictionary dictionary];
 		#if __BIG_ENDIAN__
@@ -353,7 +355,7 @@ Copyright (C) 2007 Apple Inc. All Rights Reserved.
 	// asynchronous DMA transfer to system memory the next time
 	// a flush call is made. The CPU doesn't wait for this 
 	// call to complete.
-	glCopyTexSubImage2D(GL_TEXTURE_RECTANGLE_ARB, 0, 0, 0, 0, 0, mWidth, mHeight);
+	glCopyTexSubImage2D(GL_TEXTURE_RECTANGLE_ARB, 0, 0, 0, mXOfs, mYOfs, mWidth, mHeight);
 
 	//Check for OpenGL errors
 	theError = glGetError();

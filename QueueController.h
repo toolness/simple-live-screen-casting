@@ -65,7 +65,7 @@ Copyright (C) 2007 Apple Inc. All Rights Reserved.
 	Queue *mFreeQ,*mFilledQ;
 }
 
--(id)initWithReaderObjects:(unsigned)objectCount aContext:(NSOpenGLContext*)context pixelsWide:(unsigned)width pixelsHigh:(unsigned)height;
+-(id)initWithReaderObjects:(unsigned)objectCount aContext:(NSOpenGLContext*)context pixelsWide:(unsigned)width pixelsHigh:(unsigned)height xOffset:(unsigned)xOfs yOffset:(unsigned)yOfs;
 -(void)addItemToFreeQ:(id)anItem;
 -(void)addItemToFilledQ:(id)anItem;
 -(id)removeOldestItemFromFreeQ;

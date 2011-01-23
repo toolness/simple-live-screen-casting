@@ -197,12 +197,16 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 	
 	// Crop down so we're a multiple of 16, which is an easy way of satisfying Theora encoding requirements.
 	// TODO: Crop *up* instead.
-	width = ((width - 15) & ~0xF) + 16;
-	height = ((height - 15) & ~0xF) + 16;
+	unsigned int cropWidth = ((width - 15) & ~0xF) + 16;
+	unsigned int cropHeight = ((height - 15) & ~0xF) + 16;
 	
 	mFrameQueueController = [[QueueController alloc] initWithReaderObjects:kNumReaderObjects
-													 aContext:mGLContext pixelsWide:width pixelsHigh:height];
+													 aContext:mGLContext pixelsWide:cropWidth pixelsHigh:cropHeight
+													 xOffset:(width-cropWidth) yOffset:(height - cropHeight)];
 
+	width = cropWidth;
+	height = cropHeight;
+	
 	if (ogg_stream_init(&mTheora.os, rand()))
 		NSLog(@"ogg_stream_init() failed.");
 	th_info_init(&mTheora.ti);

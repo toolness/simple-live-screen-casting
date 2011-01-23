@@ -65,6 +65,7 @@ Copyright (C) 2007 Apple Inc. All Rights Reserved.
 @private
 	NSOpenGLContext*			mGlContext;
 	unsigned				mWidth, mHeight;
+	unsigned                mXOfs, mYOfs;
 	unsigned long			mTextureName;
 
 	CVPixelBufferPoolRef		mBufferPool;
@@ -78,7 +79,7 @@ Copyright (C) 2007 Apple Inc. All Rights Reserved.
 	QueueController *			mQueueController;
 }
 
-- (id)initWithOpenGLContext:(NSOpenGLContext*)context pixelsWide:(unsigned)width pixelsHigh:(unsigned)height queueController:(QueueController *)controller;
+- (id)initWithOpenGLContext:(NSOpenGLContext*)context pixelsWide:(unsigned)width pixelsHigh:(unsigned)height xOffset:(unsigned)xOfs yOffset:(unsigned)yOfs queueController:(QueueController *)controller;
 - (BOOL)readScreenAsyncBegin;
 - (CVPixelBufferRef)readScreenAsyncFinish;
 - (void)readScreenAsyncOnSeparateThread;
