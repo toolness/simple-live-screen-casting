@@ -127,6 +127,32 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 
 		CGContextDrawImage(myContext, dest, cgImage);
 
+		CGImageRef myContextImage = CGBitmapContextCreateImage(myContext);
+		NSURL *imageURL = [NSURL URLWithString:@"file:///Users/avarma/Desktop/screencap.jpg"];
+
+		float compression = 0.1;
+		int orientation = 1;
+		CFStringRef myKeys[3];
+		CFTypeRef   myValues[3];
+		CFDictionaryRef myOptions = NULL;
+		myKeys[0] = kCGImagePropertyOrientation;
+		myValues[0] = CFNumberCreate(NULL, kCFNumberIntType, &orientation);
+		myKeys[1] = kCGImagePropertyHasAlpha;
+		myValues[1] = kCFBooleanTrue;
+		myKeys[2] = kCGImageDestinationLossyCompressionQuality;
+		myValues[2] = CFNumberCreate(NULL, kCFNumberFloatType, &compression);
+		myOptions = CFDictionaryCreate( NULL, (const void **)myKeys, (const void **)myValues, 3,
+									   &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+		
+		CGImageDestinationRef imageFile = CGImageDestinationCreateWithURL((CFURLRef) imageURL, kUTTypeJPEG, 1, nil);
+		CGImageDestinationAddImage(imageFile, myContextImage, myOptions);
+		CGImageDestinationFinalize(imageFile);
+		CFRelease(imageFile);
+		CFRelease(myOptions);
+		CFRelease(myValues[0]);
+		CFRelease(myValues[2]);
+		CGImageRelease(myContextImage);
+		
 		CGImageRelease(cgImage);
 		CGDataProviderRelease(pixelBufferData);
 
