@@ -24,6 +24,7 @@
 		EA58FE8712EBBB2D0069C8A7 /* libvorbis.a in Frameworks */ = {isa = PBXBuildFile; fileRef = EA58FE8612EBBB2D0069C8A7 /* libvorbis.a */; };
 		EA58FE8912EBBB2D0069C8A7 /* libvorbisenc.a in Frameworks */ = {isa = PBXBuildFile; fileRef = EA58FE8812EBBB2D0069C8A7 /* libvorbisenc.a */; };
 		EA58FEC412EBC97E0069C8A7 /* Convert.m in Sources */ = {isa = PBXBuildFile; fileRef = EA58FEC212EBC97E0069C8A7 /* Convert.m */; };
+		EA82D2E612ED85EA000F2606 /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EA82D2E512ED85EA000F2606 /* QuartzCore.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -55,6 +56,7 @@
 		EA58FE8812EBBB2D0069C8A7 /* libvorbisenc.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libvorbisenc.a; path = "/Users/avarma/Documents/new-2011-stuff/ScreenCapTheora/third-party-lib/libvorbisenc.a"; sourceTree = "<absolute>"; };
 		EA58FEC212EBC97E0069C8A7 /* Convert.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Convert.m; sourceTree = "<group>"; };
 		EA58FEC312EBC97E0069C8A7 /* Convert.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Convert.h; sourceTree = "<group>"; };
+		EA82D2E512ED85EA000F2606 /* QuartzCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuartzCore.framework; path = System/Library/Frameworks/QuartzCore.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -71,6 +73,7 @@
 				EA58FE8512EBBB2D0069C8A7 /* libtheoraenc.a in Frameworks */,
 				EA58FE8712EBBB2D0069C8A7 /* libvorbis.a in Frameworks */,
 				EA58FE8912EBBB2D0069C8A7 /* libvorbisenc.a in Frameworks */,
+				EA82D2E612ED85EA000F2606 /* QuartzCore.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -130,6 +133,7 @@
 				EA58FE8412EBBB2D0069C8A7 /* libtheoraenc.a */,
 				EA58FE8612EBBB2D0069C8A7 /* libvorbis.a */,
 				EA58FE8812EBBB2D0069C8A7 /* libvorbisenc.a */,
+				EA82D2E512ED85EA000F2606 /* QuartzCore.framework */,
 			);
 			name = ScreenCapTheora;
 			sourceTree = "<group>";

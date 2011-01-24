@@ -104,8 +104,32 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 		
 		if (bytes_per_row != width * 4)
 			NSLog(@"Expected bytes per row to be %d but got %d.", width * 4, bytes_per_row);
-
-		CVPixelBufferUnlockBaseAddress(pixelBuffer, 0);
+		
+		CGColorSpaceRef myColorSpace = CGColorSpaceCreateWithName(kCGColorSpaceGenericRGB);
+		CGContextRef myContext = CGBitmapContextCreate(src, width, height, 8, bytes_per_row, myColorSpace, kCGImageAlphaPremultipliedLast);
+		CIContext *coreImageContext = [CIContext contextWithCGContext:myContext options:nil];
+		CIImage *myImage = [CIImage imageWithCVImageBuffer:pixelBuffer];
+		
+		CIFilter *hueAdjust = [CIFilter filterWithName:@"CIHueAdjust"];
+		[hueAdjust setDefaults];
+		[hueAdjust setValue: myImage forKey: @"inputImage"];
+		[hueAdjust setValue: [NSNumber numberWithFloat: 2.094]
+					 forKey: @"inputAngle"];
+		CIImage *result = [hueAdjust valueForKey: @"outputImage"];
+		//[hueAdjust release];
+	
+		//[result release];
+		//[myImage release];
+		//[coreImageContext release];
+		CGRect rect;
+		rect.origin.x = 0;
+		rect.origin.y = 0;
+		rect.size.width = width;
+		rect.size.height = height;
+		[coreImageContext drawImage:result atPoint:CGPointZero fromRect:rect];
+		
+		CGContextRelease(myContext);
+		CGColorSpaceRelease(myColorSpace);
 
 		/* i420 is 3/2 bytes per pixel */
 		int v_frame_size = width * height * 3 / 2;
@@ -114,6 +138,8 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 			NSLog(@"calloc() failed.");
 
 		BGR32toI420(width, height, src, v_frame);
+
+		CVPixelBufferUnlockBaseAddress(pixelBuffer, 0);
 
 		th_ycbcr_buffer v_buffer;
 
