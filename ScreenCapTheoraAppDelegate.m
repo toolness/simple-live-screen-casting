@@ -16,7 +16,7 @@
 #import "QueueController.h"
 #import "FrameReader.h"
 
-#define kEnableTheora 1
+#define kEnableTheora 0
 #define kNumReaderObjects 20
 #define kFPS 4
 #define kImageScaling 0.5
@@ -204,8 +204,6 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 					NSLog(@"th_encode_ycbcr_in() returned an invalid response.");
 			}
 
-			free(cgDest);
-
 			if (!th_encode_packetout(mTheora.th, 0, &mTheora.op))
 				NSLog(@"th_encode_packetout() failed.");
 			
@@ -216,7 +214,9 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 
 			free(v_frame);
 		}
-		
+
+		free(cgDest);
+
 		// TODO: Why does CVPixelBufferRelease(pixelBuffer) crash us?
 
 		NSLog(@"Encoded 1 frame @ %dx%d.", targetWidth, targetHeight);
@@ -258,10 +258,10 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 													 aContext:mGLContext pixelsWide:width pixelsHigh:height
 													 xOffset:0 yOffset:0];
 
+	mTheora.width = width * kImageScaling;
+	mTheora.height = height * kImageScaling;
+
 	if (kEnableTheora) {
-		mTheora.width = width * kImageScaling;
-		mTheora.height = height * kImageScaling;
-		
 		// Crop down so we're a multiple of 16, which is an easy way of satisfying Theora encoding requirements.
 		// TODO: Crop *up* instead, or make this better somehow?
 		mTheora.width = ((mTheora.width - 15) & ~0xF) + 16;
