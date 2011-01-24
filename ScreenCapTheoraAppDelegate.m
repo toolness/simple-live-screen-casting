@@ -21,6 +21,7 @@
 #define kFPS 1
 #define kImageScaling 0.25
 #define kTheoraQuality 32
+#define kTheoraKeyframeGranuleShift 6
 
 typedef struct {
 	int fd;
@@ -274,12 +275,12 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 		NSLog(@"Picture size is %dx%d.", scaledWidth, scaledHeight);
 		
 		/* Must be multiples of 16 */
-		mTheora.ti.frame_width = scaledWidth;//(width + 15) & ~0xF;
-		mTheora.ti.frame_height = scaledHeight;//(height + 15) & ~0xF;
+		mTheora.ti.frame_width = scaledWidth;
+		mTheora.ti.frame_height = scaledHeight;
 		mTheora.ti.pic_width = scaledWidth;
 		mTheora.ti.pic_height = scaledHeight;
-		mTheora.ti.pic_x = 0; //(mTheora.ti.frame_width - width) >> 1 & ~1;
-		mTheora.ti.pic_y = 0; //(mTheora.ti.frame_height - height) >> 1 & ~1;
+		mTheora.ti.pic_x = 0;
+		mTheora.ti.pic_y = 0;
 		mTheora.ti.fps_numerator = kFPS;
 		mTheora.ti.fps_denominator = 1;
 
@@ -290,8 +291,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 		//mTheora.ti.target_bitrate = 128000;
 		mTheora.ti.colorspace = TH_CS_ITU_REC_470M;
 		mTheora.ti.pixel_fmt = TH_PF_420;
-		// TODO: Make granule shift a named constant.
-		mTheora.ti.keyframe_granule_shift = 6;
+		mTheora.ti.keyframe_granule_shift = kTheoraKeyframeGranuleShift;
 		
 		mTheora.th = th_encode_alloc(&mTheora.ti);
 		th_info_clear(&mTheora.ti);
