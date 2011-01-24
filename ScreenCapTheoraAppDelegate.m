@@ -20,7 +20,7 @@
 #define kNumReaderObjects 20
 #define kFPS 1
 #define kImageScaling 0.25
-#define kQuality 32
+#define kTheoraQuality 32
 
 typedef struct {
 	int fd;
@@ -30,8 +30,6 @@ typedef struct {
 	ogg_packet op;
 	ogg_stream_state os;
 	ogg_page og;
-	unsigned int width;
-	unsigned int height;
 } TheoraState;
 
 static TheoraState mTheora;
@@ -43,6 +41,8 @@ static QueueController *mFrameQueueController;
 static ScreenCapTheoraAppDelegate *mSelf;
 static NSTimeInterval mLastTime;
 static NSTimeInterval mFPSInterval;
+static unsigned int scaledWidth;
+static unsigned int scaledHeight;
 volatile static int mFramesLeft = 0;
 BOOL mShouldStop;
 
@@ -105,8 +105,8 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 		void *src = CVPixelBufferGetBaseAddress(pixelBuffer);
 		unsigned int width = CVPixelBufferGetWidth(pixelBuffer);
 		unsigned int height = CVPixelBufferGetHeight(pixelBuffer);
-		unsigned int targetWidth = mTheora.width;
-		unsigned int targetHeight = mTheora.height;
+		unsigned int targetWidth = scaledWidth;
+		unsigned int targetHeight = scaledHeight;
 		size_t bytes_per_row = CVPixelBufferGetBytesPerRow(pixelBuffer);
 		size_t target_bytes_per_row = targetWidth * 4;
 
@@ -258,26 +258,26 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 													 aContext:mGLContext pixelsWide:width pixelsHigh:height
 													 xOffset:0 yOffset:0];
 
-	mTheora.width = width * kImageScaling;
-	mTheora.height = height * kImageScaling;
+	scaledWidth = width * kImageScaling;
+	scaledHeight = height * kImageScaling;
 
 	if (kEnableTheora) {
 		// Crop down so we're a multiple of 16, which is an easy way of satisfying Theora encoding requirements.
 		// TODO: Crop *up* instead, or make this better somehow?
-		mTheora.width = ((mTheora.width - 15) & ~0xF) + 16;
-		mTheora.height = ((mTheora.height - 15) & ~0xF) + 16;
+		scaledWidth = ((scaledWidth - 15) & ~0xF) + 16;
+		scaledHeight = ((scaledHeight - 15) & ~0xF) + 16;
 		
 		if (ogg_stream_init(&mTheora.os, rand()))
 			NSLog(@"ogg_stream_init() failed.");
 		th_info_init(&mTheora.ti);
 	   
-		NSLog(@"Picture size is %dx%d.", mTheora.width, mTheora.height);
+		NSLog(@"Picture size is %dx%d.", scaledWidth, scaledHeight);
 		
 		/* Must be multiples of 16 */
-		mTheora.ti.frame_width = mTheora.width;//(width + 15) & ~0xF;
-		mTheora.ti.frame_height = mTheora.height;//(height + 15) & ~0xF;
-		mTheora.ti.pic_width = mTheora.width;
-		mTheora.ti.pic_height = mTheora.height;
+		mTheora.ti.frame_width = scaledWidth;//(width + 15) & ~0xF;
+		mTheora.ti.frame_height = scaledHeight;//(height + 15) & ~0xF;
+		mTheora.ti.pic_width = scaledWidth;
+		mTheora.ti.pic_height = scaledHeight;
 		mTheora.ti.pic_x = 0; //(mTheora.ti.frame_width - width) >> 1 & ~1;
 		mTheora.ti.pic_y = 0; //(mTheora.ti.frame_height - height) >> 1 & ~1;
 		mTheora.ti.fps_numerator = kFPS;
@@ -286,7 +286,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 		NSLog(@"Frame size is %dx%d, with the picture offset at (%d, %d).", mTheora.ti.frame_width, mTheora.ti.frame_height, mTheora.ti.pic_x, mTheora.ti.pic_y);
 
 		/* Are these the right values? */
-		mTheora.ti.quality = kQuality;
+		mTheora.ti.quality = kTheoraQuality;
 		//mTheora.ti.target_bitrate = 128000;
 		mTheora.ti.colorspace = TH_CS_ITU_REC_470M;
 		mTheora.ti.pixel_fmt = TH_PF_420;
