@@ -43,8 +43,8 @@ static QueueController *mFrameQueueController;
 static ScreenCapTheoraAppDelegate *mSelf;
 static NSTimeInterval mLastTime;
 static NSTimeInterval mFPSInterval;
-static unsigned int scaledWidth;
-static unsigned int scaledHeight;
+static unsigned int mScaledWidth;
+static unsigned int mScaledHeight;
 volatile static int mFramesLeft = 0;
 BOOL mShouldStop;
 
@@ -107,8 +107,8 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 		void *src = CVPixelBufferGetBaseAddress(pixelBuffer);
 		unsigned int width = CVPixelBufferGetWidth(pixelBuffer);
 		unsigned int height = CVPixelBufferGetHeight(pixelBuffer);
-		unsigned int targetWidth = scaledWidth;
-		unsigned int targetHeight = scaledHeight;
+		unsigned int targetWidth = mScaledWidth;
+		unsigned int targetHeight = mScaledHeight;
 		size_t bytes_per_row = CVPixelBufferGetBytesPerRow(pixelBuffer);
 		size_t target_bytes_per_row = targetWidth * 4;
 
@@ -262,26 +262,26 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 													 aContext:mGLContext pixelsWide:width pixelsHigh:height
 													 xOffset:0 yOffset:0];
 
-	scaledWidth = width * kImageScaling;
-	scaledHeight = height * kImageScaling;
+	mScaledWidth = width * kImageScaling;
+	mScaledHeight = height * kImageScaling;
 
 	if (kEnableTheora) {
 		// Crop down so we're a multiple of 16, which is an easy way of satisfying Theora encoding requirements.
 		// TODO: Crop *up* instead, or make this better somehow?
-		scaledWidth = ((scaledWidth - 15) & ~0xF) + 16;
-		scaledHeight = ((scaledHeight - 15) & ~0xF) + 16;
+		mScaledWidth = ((mScaledWidth - 15) & ~0xF) + 16;
+		mScaledHeight = ((mScaledHeight - 15) & ~0xF) + 16;
 		
 		if (ogg_stream_init(&mTheora.os, rand()))
 			NSLog(@"ogg_stream_init() failed.");
 		th_info_init(&mTheora.ti);
 	   
-		NSLog(@"Picture size is %dx%d.", scaledWidth, scaledHeight);
+		NSLog(@"Picture size is %dx%d.", mScaledWidth, mScaledHeight);
 		
 		/* Must be multiples of 16 */
-		mTheora.ti.frame_width = scaledWidth;
-		mTheora.ti.frame_height = scaledHeight;
-		mTheora.ti.pic_width = scaledWidth;
-		mTheora.ti.pic_height = scaledHeight;
+		mTheora.ti.frame_width = mScaledWidth;
+		mTheora.ti.frame_height = mScaledHeight;
+		mTheora.ti.pic_width = mScaledWidth;
+		mTheora.ti.pic_height = mScaledHeight;
 		mTheora.ti.pic_x = 0;
 		mTheora.ti.pic_y = 0;
 		mTheora.ti.fps_numerator = kFPS;
