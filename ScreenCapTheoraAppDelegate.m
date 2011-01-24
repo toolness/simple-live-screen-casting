@@ -6,6 +6,7 @@
 //  Copyright 2011 Mozilla. All rights reserved.
 //
 
+#include <sys/stat.h>
 #include <ogg/ogg.h>
 #include <theora/theoraenc.h>
 #include "Convert.h"
