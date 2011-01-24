@@ -18,8 +18,8 @@
 
 #define kEnableTheora 0
 #define kNumReaderObjects 20
-#define kFPS 4
-#define kImageScaling 0.5
+#define kFPS 1
+#define kImageScaling 0.25
 #define kQuality 32
 
 typedef struct {
