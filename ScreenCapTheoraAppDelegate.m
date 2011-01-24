@@ -16,6 +16,7 @@
 #import "QueueController.h"
 #import "FrameReader.h"
 
+#define kEnableTheora 1
 #define kNumReaderObjects 20
 #define kFPS 4
 #define kImageScaling 0.5
@@ -161,59 +162,61 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 
 		CVPixelBufferUnlockBaseAddress(pixelBuffer, 0);
 
-		/* i420 is 3/2 bytes per pixel */
-		int v_frame_size = targetWidth * targetHeight * 3 / 2;
-		void *v_frame = calloc(v_frame_size, 1);
-		if (v_frame == NULL)
-			NSLog(@"calloc() failed.");
+		if (kEnableTheora) {
+			/* i420 is 3/2 bytes per pixel */
+			int v_frame_size = targetWidth * targetHeight * 3 / 2;
+			void *v_frame = calloc(v_frame_size, 1);
+			if (v_frame == NULL)
+				NSLog(@"calloc() failed.");
 
-		BGR32toI420(targetWidth, targetHeight, cgDest, v_frame);
+			BGR32toI420(targetWidth, targetHeight, cgDest, v_frame);
 
-		free(cgDest);
+			th_ycbcr_buffer v_buffer;
 
-		th_ycbcr_buffer v_buffer;
+			/* Convert i420 to YCbCr */
+			v_buffer[0].width = targetWidth;
+			v_buffer[0].stride = targetWidth;
+			v_buffer[0].height = targetHeight;
+			
+			v_buffer[1].width = (v_buffer[0].width >> 1);
+			v_buffer[1].height = (v_buffer[0].height >> 1);
+			v_buffer[1].stride = v_buffer[1].width;
+			
+			v_buffer[2].width = v_buffer[1].width;
+			v_buffer[2].height = v_buffer[1].height;
+			v_buffer[2].stride = v_buffer[1].stride;
+			
+			v_buffer[0].data = v_frame;
+			v_buffer[1].data = v_frame + v_buffer[0].width * v_buffer[0].height;
+			v_buffer[2].data = v_buffer[1].data + v_buffer[0].width * v_buffer[0].height / 4;
 
-		/* Convert i420 to YCbCr */
-		v_buffer[0].width = targetWidth;
-		v_buffer[0].stride = targetWidth;
-		v_buffer[0].height = targetHeight;
-		
-		v_buffer[1].width = (v_buffer[0].width >> 1);
-		v_buffer[1].height = (v_buffer[0].height >> 1);
-		v_buffer[1].stride = v_buffer[1].width;
-		
-		v_buffer[2].width = v_buffer[1].width;
-		v_buffer[2].height = v_buffer[1].height;
-		v_buffer[2].stride = v_buffer[1].stride;
-		
-		v_buffer[0].data = v_frame;
-		v_buffer[1].data = v_frame + v_buffer[0].width * v_buffer[0].height;
-		v_buffer[2].data = v_buffer[1].data + v_buffer[0].width * v_buffer[0].height / 4;
+			switch (th_encode_ycbcr_in(mTheora.th, v_buffer)) {
+				case TH_EFAULT:
+					NSLog(@"th_encode_ycbcr_in() returned TH_EFAULT.");
+					break;
+				case TH_EINVAL:
+					NSLog(@"th_encode_ycbcr_in() returned TH_EINVAL.");
+					break;
+				case 0:
+					// Success!
+					break;
+				default:
+					NSLog(@"th_encode_ycbcr_in() returned an invalid response.");
+			}
 
-		switch (th_encode_ycbcr_in(mTheora.th, v_buffer)) {
-			case TH_EFAULT:
-				NSLog(@"th_encode_ycbcr_in() returned TH_EFAULT.");
-				break;
-			case TH_EINVAL:
-				NSLog(@"th_encode_ycbcr_in() returned TH_EINVAL.");
-				break;
-			case 0:
-				// Success!
-				break;
-			default:
-				NSLog(@"th_encode_ycbcr_in() returned an invalid response.");
+			free(cgDest);
+
+			if (!th_encode_packetout(mTheora.th, 0, &mTheora.op))
+				NSLog(@"th_encode_packetout() failed.");
+			
+			ogg_stream_packetin(&mTheora.os, &mTheora.op);
+			while (ogg_stream_pageout(&mTheora.os, &mTheora.og)) {
+				writeTheoraPage();
+			}
+
+			free(v_frame);
 		}
-
-		if (!th_encode_packetout(mTheora.th, 0, &mTheora.op))
-			NSLog(@"th_encode_packetout() failed.");
 		
-		ogg_stream_packetin(&mTheora.os, &mTheora.op);
-		while (ogg_stream_pageout(&mTheora.os, &mTheora.og)) {
-			writeTheoraPage();
-		}
-
-		free(v_frame);
-
 		// TODO: Why does CVPixelBufferRelease(pixelBuffer) crash us?
 
 		NSLog(@"Encoded 1 frame @ %dx%d.", targetWidth, targetHeight);
@@ -250,93 +253,91 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 
 	unsigned int width = mDisplayRect.size.width;
 	unsigned int height = mDisplayRect.size.height;
-
-	mTheora.width = width * kImageScaling;
-	mTheora.height = height * kImageScaling;
-	
-	// Crop down so we're a multiple of 16, which is an easy way of satisfying Theora encoding requirements.
-	// TODO: Crop *up* instead, or make this better somehow?
-	mTheora.width = ((mTheora.width - 15) & ~0xF) + 16;
-	mTheora.height = ((mTheora.height - 15) & ~0xF) + 16;
 	
 	mFrameQueueController = [[QueueController alloc] initWithReaderObjects:kNumReaderObjects
 													 aContext:mGLContext pixelsWide:width pixelsHigh:height
 													 xOffset:0 yOffset:0];
 
-	if (ogg_stream_init(&mTheora.os, rand()))
-		NSLog(@"ogg_stream_init() failed.");
-	th_info_init(&mTheora.ti);
-   
-	NSLog(@"Picture size is %dx%d.", mTheora.width, mTheora.height);
-	
-	/* Must be multiples of 16 */
-    mTheora.ti.frame_width = mTheora.width;//(width + 15) & ~0xF;
-    mTheora.ti.frame_height = mTheora.height;//(height + 15) & ~0xF;
-    mTheora.ti.pic_width = mTheora.width;
-    mTheora.ti.pic_height = mTheora.height;
-    mTheora.ti.pic_x = 0; //(mTheora.ti.frame_width - width) >> 1 & ~1;
-    mTheora.ti.pic_y = 0; //(mTheora.ti.frame_height - height) >> 1 & ~1;
-    mTheora.ti.fps_numerator = kFPS;
-    mTheora.ti.fps_denominator = 1;
+	if (kEnableTheora) {
+		mTheora.width = width * kImageScaling;
+		mTheora.height = height * kImageScaling;
+		
+		// Crop down so we're a multiple of 16, which is an easy way of satisfying Theora encoding requirements.
+		// TODO: Crop *up* instead, or make this better somehow?
+		mTheora.width = ((mTheora.width - 15) & ~0xF) + 16;
+		mTheora.height = ((mTheora.height - 15) & ~0xF) + 16;
+		
+		if (ogg_stream_init(&mTheora.os, rand()))
+			NSLog(@"ogg_stream_init() failed.");
+		th_info_init(&mTheora.ti);
+	   
+		NSLog(@"Picture size is %dx%d.", mTheora.width, mTheora.height);
+		
+		/* Must be multiples of 16 */
+		mTheora.ti.frame_width = mTheora.width;//(width + 15) & ~0xF;
+		mTheora.ti.frame_height = mTheora.height;//(height + 15) & ~0xF;
+		mTheora.ti.pic_width = mTheora.width;
+		mTheora.ti.pic_height = mTheora.height;
+		mTheora.ti.pic_x = 0; //(mTheora.ti.frame_width - width) >> 1 & ~1;
+		mTheora.ti.pic_y = 0; //(mTheora.ti.frame_height - height) >> 1 & ~1;
+		mTheora.ti.fps_numerator = kFPS;
+		mTheora.ti.fps_denominator = 1;
 
-	NSLog(@"Frame size is %dx%d, with the picture offset at (%d, %d).", mTheora.ti.frame_width, mTheora.ti.frame_height, mTheora.ti.pic_x, mTheora.ti.pic_y);
+		NSLog(@"Frame size is %dx%d, with the picture offset at (%d, %d).", mTheora.ti.frame_width, mTheora.ti.frame_height, mTheora.ti.pic_x, mTheora.ti.pic_y);
 
-    /* Are these the right values? */
-    //ogg_uint32_t keyframe = 64 - 1;
-	//int i;
-    //for (i = 0; keyframe; i++)
-    //    keyframe >>= 1;
-    mTheora.ti.quality = kQuality;
-	//mTheora.ti.target_bitrate = 128000;
-    mTheora.ti.colorspace = TH_CS_ITU_REC_470M;
-    mTheora.ti.pixel_fmt = TH_PF_420;
-	// TODO: Make granule shift a named constant.
-    mTheora.ti.keyframe_granule_shift = 6; // used to be i
-	
-	mTheora.th = th_encode_alloc(&mTheora.ti);
-	th_info_clear(&mTheora.ti);
-	
-	th_comment_init(&mTheora.tc);
-	th_comment_add_tag(&mTheora.tc, (char *)"ENCODER", (char *)"SCT");
-	if (th_encode_flushheader(mTheora.th, &mTheora.tc, &mTheora.op) <= 0)
-		NSLog(@"th_encode_flushheader() failed.");
-	th_comment_clear(&mTheora.tc);
-	
-	ogg_stream_packetin(&mTheora.os, &mTheora.op);
-	if (ogg_stream_pageout(&mTheora.os, &mTheora.og) != 1)
-		NSLog(@"ogg_stream_pageout() failed.");
-
-	// TODO: Don't hardcode this filename.
-	mTheora.fd = open("/Users/avarma/Desktop/screencap.ogv", O_WRONLY | O_CREAT | O_TRUNC | O_SYNC);
-	if (mTheora.fd < 0)
-		NSLog(@"open() failed.");
-	
-	writeTheoraPage();
-
-	int ret;
-	
-	for (;;) {
-		ret = th_encode_flushheader(mTheora.th, &mTheora.tc, &mTheora.op);
-		if (ret < 0) {
+		/* Are these the right values? */
+		mTheora.ti.quality = kQuality;
+		//mTheora.ti.target_bitrate = 128000;
+		mTheora.ti.colorspace = TH_CS_ITU_REC_470M;
+		mTheora.ti.pixel_fmt = TH_PF_420;
+		// TODO: Make granule shift a named constant.
+		mTheora.ti.keyframe_granule_shift = 6;
+		
+		mTheora.th = th_encode_alloc(&mTheora.ti);
+		th_info_clear(&mTheora.ti);
+		
+		th_comment_init(&mTheora.tc);
+		th_comment_add_tag(&mTheora.tc, (char *)"ENCODER", (char *)"SCT");
+		if (th_encode_flushheader(mTheora.th, &mTheora.tc, &mTheora.op) <= 0)
 			NSLog(@"th_encode_flushheader() failed.");
-			return;
-		}
-		if (ret == 0)
-			break;
+		th_comment_clear(&mTheora.tc);
+		
 		ogg_stream_packetin(&mTheora.os, &mTheora.op);
-	}
-	for (;;) {
-		ret = ogg_stream_flush(&mTheora.os, &mTheora.og);
-		if (ret < 0) {
-			NSLog(@"ogg_stream_flush() failed.");
-			return;
-		}
-		if (ret == 0) {
-			break;
-		}
-		writeTheoraPage();
-	}
+		if (ogg_stream_pageout(&mTheora.os, &mTheora.og) != 1)
+			NSLog(@"ogg_stream_pageout() failed.");
 
+		// TODO: Don't hardcode this filename.
+		mTheora.fd = open("/Users/avarma/Desktop/screencap.ogv", O_WRONLY | O_CREAT | O_TRUNC | O_SYNC);
+		if (mTheora.fd < 0)
+			NSLog(@"open() failed.");
+		
+		writeTheoraPage();
+
+		int ret;
+		
+		for (;;) {
+			ret = th_encode_flushheader(mTheora.th, &mTheora.tc, &mTheora.op);
+			if (ret < 0) {
+				NSLog(@"th_encode_flushheader() failed.");
+				return;
+			}
+			if (ret == 0)
+				break;
+			ogg_stream_packetin(&mTheora.os, &mTheora.op);
+		}
+		for (;;) {
+			ret = ogg_stream_flush(&mTheora.os, &mTheora.og);
+			if (ret < 0) {
+				NSLog(@"ogg_stream_flush() failed.");
+				return;
+			}
+			if (ret == 0) {
+				break;
+			}
+			writeTheoraPage();
+		}
+	}
+	
 	mLastTime = [NSDate timeIntervalSinceReferenceDate];
 	mFPSInterval = 1.0 / kFPS;
 
