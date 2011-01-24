@@ -307,10 +307,12 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 			NSLog(@"ogg_stream_pageout() failed.");
 
 		// TODO: Don't hardcode this filename.
-		mTheora.fd = open("/Users/avarma/Desktop/screencap.ogv", O_WRONLY | O_CREAT | O_TRUNC | O_SYNC);
+		mTheora.fd = open("/Users/avarma/Desktop/screencap.ogv", O_WRONLY | O_CREAT | O_TRUNC | O_SYNC);		
 		if (mTheora.fd < 0)
 			NSLog(@"open() failed.");
-		
+
+		fchmod(mTheora.fd, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+
 		writeTheoraPage();
 
 		int ret;
