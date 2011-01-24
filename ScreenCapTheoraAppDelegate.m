@@ -24,9 +24,12 @@
 #define kImageScaling 0.25
 #define kTheoraQuality 32
 #define kTheoraKeyframeGranuleShift 6
+#define kSecondsPerMovie 2
+#define kFramesPerMovie (kSecondsPerMovie * kFPS)
 
 typedef struct {
 	int fd;
+	int framesWritten;
 	th_info ti;
 	th_enc_ctx *th;
 	th_comment tc;
@@ -52,6 +55,93 @@ BOOL mShouldStop;
 static void writeTheoraPage() {
 	write(mTheora.fd, mTheora.og.header, mTheora.og.header_len);
 	write(mTheora.fd, mTheora.og.body, mTheora.og.body_len);
+}
+
+static void closeTheoraFile()
+{
+	th_encode_free(mTheora.th);
+	
+	if (ogg_stream_flush(&mTheora.os, &mTheora.og))
+		writeTheoraPage();
+	ogg_stream_clear(&mTheora.os);
+	
+	close(mTheora.fd);
+	
+	mTheora.th = NULL;	
+}
+
+static void createTheoraFile()
+{
+	if (ogg_stream_init(&mTheora.os, rand()))
+		NSLog(@"ogg_stream_init() failed.");
+	th_info_init(&mTheora.ti);
+	
+	NSLog(@"Picture size is %dx%d.", mScaledWidth, mScaledHeight);
+	
+	/* Must be multiples of 16 */
+	mTheora.ti.frame_width = mScaledWidth;
+	mTheora.ti.frame_height = mScaledHeight;
+	mTheora.ti.pic_width = mScaledWidth;
+	mTheora.ti.pic_height = mScaledHeight;
+	mTheora.ti.pic_x = 0;
+	mTheora.ti.pic_y = 0;
+	mTheora.ti.fps_numerator = kFPS;
+	mTheora.ti.fps_denominator = 1;
+	
+	NSLog(@"Frame size is %dx%d, with the picture offset at (%d, %d).", mTheora.ti.frame_width, mTheora.ti.frame_height, mTheora.ti.pic_x, mTheora.ti.pic_y);
+	
+	/* Are these the right values? */
+	mTheora.ti.quality = kTheoraQuality;
+	//mTheora.ti.target_bitrate = 128000;
+	mTheora.ti.colorspace = TH_CS_ITU_REC_470M;
+	mTheora.ti.pixel_fmt = TH_PF_420;
+	mTheora.ti.keyframe_granule_shift = kTheoraKeyframeGranuleShift;
+	
+	mTheora.th = th_encode_alloc(&mTheora.ti);
+	th_info_clear(&mTheora.ti);
+	
+	th_comment_init(&mTheora.tc);
+	th_comment_add_tag(&mTheora.tc, (char *)"ENCODER", (char *)"SCT");
+	if (th_encode_flushheader(mTheora.th, &mTheora.tc, &mTheora.op) <= 0)
+		NSLog(@"th_encode_flushheader() failed.");
+	th_comment_clear(&mTheora.tc);
+	
+	ogg_stream_packetin(&mTheora.os, &mTheora.op);
+	if (ogg_stream_pageout(&mTheora.os, &mTheora.og) != 1)
+		NSLog(@"ogg_stream_pageout() failed.");
+	
+	// TODO: Don't hardcode this filename.
+	mTheora.fd = open("/Users/avarma/Desktop/screencap.ogv", O_WRONLY | O_CREAT | O_TRUNC | O_SYNC);		
+	if (mTheora.fd < 0)
+		NSLog(@"open() failed.");
+	
+	fchmod(mTheora.fd, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+	
+	writeTheoraPage();
+	
+	int ret;
+	
+	for (;;) {
+		ret = th_encode_flushheader(mTheora.th, &mTheora.tc, &mTheora.op);
+		if (ret < 0) {
+			NSLog(@"th_encode_flushheader() failed.");
+			return;
+		}
+		if (ret == 0)
+			break;
+		ogg_stream_packetin(&mTheora.os, &mTheora.op);
+	}
+	for (;;) {
+		ret = ogg_stream_flush(&mTheora.os, &mTheora.og);
+		if (ret < 0) {
+			NSLog(@"ogg_stream_flush() failed.");
+			return;
+		}
+		if (ret == 0) {
+			break;
+		}
+		writeTheoraPage();
+	}	
 }
 
 static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
@@ -209,12 +299,28 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 					NSLog(@"th_encode_ycbcr_in() returned an invalid response.");
 			}
 
-			if (!th_encode_packetout(mTheora.th, 0, &mTheora.op))
+			if (mTheora.framesWritten == 0) {
+				createTheoraFile();
+			}
+			
+			mTheora.framesWritten++;
+
+			int isLastPacket = 0;
+			
+			if (mTheora.framesWritten == kFramesPerMovie)
+				isLastPacket = 1;
+			
+			if (!th_encode_packetout(mTheora.th, isLastPacket, &mTheora.op))
 				NSLog(@"th_encode_packetout() failed.");
 			
 			ogg_stream_packetin(&mTheora.os, &mTheora.op);
 			while (ogg_stream_pageout(&mTheora.os, &mTheora.og)) {
 				writeTheoraPage();
+			}
+
+			if (mTheora.framesWritten == kFramesPerMovie) {
+				closeTheoraFile();
+				mTheora.framesWritten = 0;
 			}
 
 			free(v_frame);
@@ -232,93 +338,6 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 	mFramesLeft--;
 
 	[pool release];
-}
-
-static void closeTheoraFile()
-{
-	th_encode_free(mTheora.th);
-	
-	if (ogg_stream_flush(&mTheora.os, &mTheora.og))
-		writeTheoraPage();
-	ogg_stream_clear(&mTheora.os);
-	
-	close(mTheora.fd);
-	
-	mTheora.th = NULL;	
-}
-
-static void createTheoraFile()
-{
-	if (ogg_stream_init(&mTheora.os, rand()))
-		NSLog(@"ogg_stream_init() failed.");
-	th_info_init(&mTheora.ti);
-	
-	NSLog(@"Picture size is %dx%d.", mScaledWidth, mScaledHeight);
-	
-	/* Must be multiples of 16 */
-	mTheora.ti.frame_width = mScaledWidth;
-	mTheora.ti.frame_height = mScaledHeight;
-	mTheora.ti.pic_width = mScaledWidth;
-	mTheora.ti.pic_height = mScaledHeight;
-	mTheora.ti.pic_x = 0;
-	mTheora.ti.pic_y = 0;
-	mTheora.ti.fps_numerator = kFPS;
-	mTheora.ti.fps_denominator = 1;
-	
-	NSLog(@"Frame size is %dx%d, with the picture offset at (%d, %d).", mTheora.ti.frame_width, mTheora.ti.frame_height, mTheora.ti.pic_x, mTheora.ti.pic_y);
-	
-	/* Are these the right values? */
-	mTheora.ti.quality = kTheoraQuality;
-	//mTheora.ti.target_bitrate = 128000;
-	mTheora.ti.colorspace = TH_CS_ITU_REC_470M;
-	mTheora.ti.pixel_fmt = TH_PF_420;
-	mTheora.ti.keyframe_granule_shift = kTheoraKeyframeGranuleShift;
-	
-	mTheora.th = th_encode_alloc(&mTheora.ti);
-	th_info_clear(&mTheora.ti);
-	
-	th_comment_init(&mTheora.tc);
-	th_comment_add_tag(&mTheora.tc, (char *)"ENCODER", (char *)"SCT");
-	if (th_encode_flushheader(mTheora.th, &mTheora.tc, &mTheora.op) <= 0)
-		NSLog(@"th_encode_flushheader() failed.");
-	th_comment_clear(&mTheora.tc);
-	
-	ogg_stream_packetin(&mTheora.os, &mTheora.op);
-	if (ogg_stream_pageout(&mTheora.os, &mTheora.og) != 1)
-		NSLog(@"ogg_stream_pageout() failed.");
-	
-	// TODO: Don't hardcode this filename.
-	mTheora.fd = open("/Users/avarma/Desktop/screencap.ogv", O_WRONLY | O_CREAT | O_TRUNC | O_SYNC);		
-	if (mTheora.fd < 0)
-		NSLog(@"open() failed.");
-	
-	fchmod(mTheora.fd, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-	
-	writeTheoraPage();
-	
-	int ret;
-	
-	for (;;) {
-		ret = th_encode_flushheader(mTheora.th, &mTheora.tc, &mTheora.op);
-		if (ret < 0) {
-			NSLog(@"th_encode_flushheader() failed.");
-			return;
-		}
-		if (ret == 0)
-			break;
-		ogg_stream_packetin(&mTheora.os, &mTheora.op);
-	}
-	for (;;) {
-		ret = ogg_stream_flush(&mTheora.os, &mTheora.og);
-		if (ret < 0) {
-			NSLog(@"ogg_stream_flush() failed.");
-			return;
-		}
-		if (ret == 0) {
-			break;
-		}
-		writeTheoraPage();
-	}	
 }
 
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification {
@@ -357,9 +376,7 @@ static void createTheoraFile()
 		// Crop down so we're a multiple of 16, which is an easy way of satisfying Theora encoding requirements.
 		// TODO: Crop *up* instead, or make this better somehow?
 		mScaledWidth = ((mScaledWidth - 15) & ~0xF) + 16;
-		mScaledHeight = ((mScaledHeight - 15) & ~0xF) + 16;
-		
-		createTheoraFile();
+		mScaledHeight = ((mScaledHeight - 15) & ~0xF) + 16;		
 	}
 
 	mLastTime = [NSDate timeIntervalSinceReferenceDate];
