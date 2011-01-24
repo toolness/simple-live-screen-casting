@@ -8,3 +8,9 @@
     NSURLConnection *connection = [[NSURLConnection alloc] initWithRequest:postRequest delegate:mSelf];
     NSLog(@"Created connection: %@.", connection);
 
+* Alternatively, I can use a synchronous request for now:
+
+    NSURLResponse *response = NULL;
+    NSError *error = NULL;
+    [NSURLConnection sendSynchronousRequest:postRequest returningResponse:&response error:&error];
+    NSLog(@"Connection response: %@   error: %@", response, error);
