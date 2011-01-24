@@ -226,15 +226,16 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 	NSLog(@"Frame size is %dx%d, with the picture offset at (%d, %d).", mTheora.ti.frame_width, mTheora.ti.frame_height, mTheora.ti.pic_x, mTheora.ti.pic_y);
 
     /* Are these the right values? */
-    ogg_uint32_t keyframe = 64 - 1;
-	int i;
-    for (i = 0; keyframe; i++)
-        keyframe >>= 1;
+    //ogg_uint32_t keyframe = 64 - 1;
+	//int i;
+    //for (i = 0; keyframe; i++)
+    //    keyframe >>= 1;
 	// TODO: Make quality a named constant.
-    mTheora.ti.quality = 10;
+    //mTheora.ti.quality = 10;
+	mTheora.ti.target_bitrate = 128000;
     mTheora.ti.colorspace = TH_CS_ITU_REC_470M;
     mTheora.ti.pixel_fmt = TH_PF_420;
-    mTheora.ti.keyframe_granule_shift = i;
+    mTheora.ti.keyframe_granule_shift = 6; // used to be i
 	
 	mTheora.th = th_encode_alloc(&mTheora.ti);
 	th_info_clear(&mTheora.ti);
@@ -250,7 +251,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 		NSLog(@"ogg_stream_pageout() failed.");
 
 	// TODO: Don't hardcode this filename.
-	mTheora.fd = open("/Users/avarma/Desktop/screencap.ogv", O_WRONLY | O_CREAT | O_TRUNC);
+	mTheora.fd = open("/Users/avarma/Desktop/screencap.ogv", O_WRONLY | O_CREAT | O_TRUNC | O_SYNC);
 	if (mTheora.fd < 0)
 		NSLog(@"open() failed.");
 	
