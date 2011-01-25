@@ -20,11 +20,11 @@
 #define kEnableTheora 1
 #define kEnableJPEG 0
 #define kNumReaderObjects 20
-#define kFPS 24
-#define kImageScaling 0.35
-#define kTheoraQuality 32
-#define kTheoraKeyframeGranuleShift 5
-#define kSecondsPerMovie -1
+#define kFPS 15
+#define kImageScaling 0.25
+#define kTheoraQuality 10
+#define kTheoraKeyframeGranuleShift 6
+#define kSecondsPerMovie 2
 #define kFramesPerMovie (kSecondsPerMovie * kFPS)
 
 typedef struct {
@@ -52,11 +52,29 @@ static unsigned int mScaledHeight;
 volatile static int mFramesLeft = 0;
 BOOL mShouldStop;
 
-static void writeTheoraPage() {
+static void writeTheoraPage(NSString *kind) {
 	write(mTheora.fd, mTheora.og.header, mTheora.og.header_len);
 	write(mTheora.fd, mTheora.og.body, mTheora.og.body_len);
 	fsync(mTheora.fd);
-	NSLog(@"Wrote theora page of size %d bytes.", mTheora.og.header_len + mTheora.og.body_len);
+
+	size_t totalSize = mTheora.og.header_len + mTheora.og.body_len;
+	char *buf = malloc(totalSize);
+	memcpy(buf, mTheora.og.header, mTheora.og.header_len);
+	memcpy(buf+mTheora.og.header_len, mTheora.og.body, mTheora.og.body_len);
+	NSData *bufData = [NSData dataWithBytes:buf length:totalSize];
+	free(buf);
+
+	NSURL *postURL = [NSURL URLWithString:@"http://localhost:8080/update"];
+	NSMutableURLRequest *postRequest = [NSMutableURLRequest requestWithURL:postURL cachePolicy:NSURLRequestReloadIgnoringLocalCacheData timeoutInterval:1.0];
+	[postRequest setHTTPMethod:@"POST"];
+	[postRequest setHTTPBody:bufData];
+	[postRequest addValue:kind forHTTPHeaderField:@"x-theora-kind"];
+	NSURLResponse *response = NULL;
+	NSError *error = NULL;
+	[NSURLConnection sendSynchronousRequest:postRequest returningResponse:&response error:&error];
+
+	//NSLog(@"Connection response: %@   error: %@", response, error);
+	NSLog(@"Wrote theora %@ page of size %d bytes.", kind, mTheora.og.header_len + mTheora.og.body_len);
 }
 
 static void closeTheoraFile()
@@ -64,7 +82,7 @@ static void closeTheoraFile()
 	th_encode_free(mTheora.th);
 	
 	if (ogg_stream_flush(&mTheora.os, &mTheora.og))
-		writeTheoraPage();
+		writeTheoraPage(@"end");
 	ogg_stream_clear(&mTheora.os);
 	
 	close(mTheora.fd);
@@ -78,7 +96,7 @@ static void createTheoraFile()
 		NSLog(@"ogg_stream_init() failed.");
 	th_info_init(&mTheora.ti);
 	
-	NSLog(@"Picture size is %dx%d.", mScaledWidth, mScaledHeight);
+	//NSLog(@"Picture size is %dx%d.", mScaledWidth, mScaledHeight);
 	
 	/* Must be multiples of 16 */
 	mTheora.ti.frame_width = mScaledWidth;
@@ -90,11 +108,11 @@ static void createTheoraFile()
 	mTheora.ti.fps_numerator = kFPS;
 	mTheora.ti.fps_denominator = 1;
 	
-	NSLog(@"Frame size is %dx%d, with the picture offset at (%d, %d).", mTheora.ti.frame_width, mTheora.ti.frame_height, mTheora.ti.pic_x, mTheora.ti.pic_y);
+	//NSLog(@"Frame size is %dx%d, with the picture offset at (%d, %d).", mTheora.ti.frame_width, mTheora.ti.frame_height, mTheora.ti.pic_x, mTheora.ti.pic_y);
 	
 	/* Are these the right values? */
-	//mTheora.ti.quality = kTheoraQuality;
-	mTheora.ti.target_bitrate = 128000;
+	mTheora.ti.quality = kTheoraQuality;
+	//mTheora.ti.target_bitrate = 128000;
 	mTheora.ti.colorspace = TH_CS_ITU_REC_470M;
 	mTheora.ti.pixel_fmt = TH_PF_420;
 	mTheora.ti.keyframe_granule_shift = kTheoraKeyframeGranuleShift;
@@ -119,7 +137,7 @@ static void createTheoraFile()
 	
 	fchmod(mTheora.fd, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 	
-	writeTheoraPage();
+	writeTheoraPage(@"start");
 	
 	int ret;
 	
@@ -142,7 +160,7 @@ static void createTheoraFile()
 		if (ret == 0) {
 			break;
 		}
-		writeTheoraPage();
+		writeTheoraPage(@"header");
 	}	
 }
 
@@ -317,7 +335,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 			
 			ogg_stream_packetin(&mTheora.os, &mTheora.op);
 			while (ogg_stream_pageout(&mTheora.os, &mTheora.og)) {
-				writeTheoraPage();
+				writeTheoraPage(@"page");
 			}
 
 			if (mTheora.framesWritten == kFramesPerMovie) {
@@ -332,7 +350,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 
 		// TODO: Why does CVPixelBufferRelease(pixelBuffer) crash us?
 
-		NSLog(@"Encoded 1 frame @ %dx%d (%d left in queue).", targetWidth, targetHeight, mFramesLeft-1);
+		//NSLog(@"Encoded 1 frame @ %dx%d (%d left in queue).", targetWidth, targetHeight, mFramesLeft-1);
 		
 		[mFrameQueueController addItemToFreeQ:reader];			
 	}
