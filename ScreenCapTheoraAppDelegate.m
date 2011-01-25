@@ -20,11 +20,11 @@
 #define kEnableTheora 1
 #define kEnableJPEG 0
 #define kNumReaderObjects 20
-#define kFPS 10
-#define kImageScaling 0.25
+#define kFPS 24
+#define kImageScaling 0.35
 #define kTheoraQuality 32
-#define kTheoraKeyframeGranuleShift 6
-#define kSecondsPerMovie 2
+#define kTheoraKeyframeGranuleShift 5
+#define kSecondsPerMovie -1
 #define kFramesPerMovie (kSecondsPerMovie * kFPS)
 
 typedef struct {
@@ -55,6 +55,8 @@ BOOL mShouldStop;
 static void writeTheoraPage() {
 	write(mTheora.fd, mTheora.og.header, mTheora.og.header_len);
 	write(mTheora.fd, mTheora.og.body, mTheora.og.body_len);
+	fsync(mTheora.fd);
+	NSLog(@"Wrote theora page of size %d bytes.", mTheora.og.header_len + mTheora.og.body_len);
 }
 
 static void closeTheoraFile()
@@ -91,8 +93,8 @@ static void createTheoraFile()
 	NSLog(@"Frame size is %dx%d, with the picture offset at (%d, %d).", mTheora.ti.frame_width, mTheora.ti.frame_height, mTheora.ti.pic_x, mTheora.ti.pic_y);
 	
 	/* Are these the right values? */
-	mTheora.ti.quality = kTheoraQuality;
-	//mTheora.ti.target_bitrate = 128000;
+	//mTheora.ti.quality = kTheoraQuality;
+	mTheora.ti.target_bitrate = 128000;
 	mTheora.ti.colorspace = TH_CS_ITU_REC_470M;
 	mTheora.ti.pixel_fmt = TH_PF_420;
 	mTheora.ti.keyframe_granule_shift = kTheoraKeyframeGranuleShift;
@@ -111,7 +113,7 @@ static void createTheoraFile()
 		NSLog(@"ogg_stream_pageout() failed.");
 	
 	// TODO: Don't hardcode this filename.
-	mTheora.fd = open("/Users/avarma/Desktop/screencap.ogv", O_WRONLY | O_CREAT | O_TRUNC | O_SYNC);		
+	mTheora.fd = open("/Users/avarma/screencap.ogv", O_WRONLY | O_CREAT | O_TRUNC | O_SYNC);		
 	if (mTheora.fd < 0)
 		NSLog(@"open() failed.");
 	
@@ -258,6 +260,10 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 		CVPixelBufferUnlockBaseAddress(pixelBuffer, 0);
 
 		if (kEnableTheora) {
+			if (mTheora.framesWritten == 0) {
+				createTheoraFile();
+			}
+			
 			/* i420 is 3/2 bytes per pixel */
 			int v_frame_size = targetWidth * targetHeight * 3 / 2;
 			void *v_frame = calloc(v_frame_size, 1);
@@ -298,10 +304,6 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 				default:
 					NSLog(@"th_encode_ycbcr_in() returned an invalid response.");
 			}
-
-			if (mTheora.framesWritten == 0) {
-				createTheoraFile();
-			}
 			
 			mTheora.framesWritten++;
 
@@ -330,7 +332,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 
 		// TODO: Why does CVPixelBufferRelease(pixelBuffer) crash us?
 
-		NSLog(@"Encoded 1 frame @ %dx%d.", targetWidth, targetHeight);
+		NSLog(@"Encoded 1 frame @ %dx%d (%d left in queue).", targetWidth, targetHeight, mFramesLeft-1);
 		
 		[mFrameQueueController addItemToFreeQ:reader];			
 	}
@@ -373,6 +375,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 	mScaledHeight = height * kImageScaling;
 
 	if (kEnableTheora) {
+		NSLog(@"Using %s.", th_version_string());
 		// Crop down so we're a multiple of 16, which is an easy way of satisfying Theora encoding requirements.
 		// TODO: Crop *up* instead, or make this better somehow?
 		mScaledWidth = ((mScaledWidth - 15) & ~0xF) + 16;
