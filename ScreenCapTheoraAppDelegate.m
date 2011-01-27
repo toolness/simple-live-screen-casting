@@ -30,6 +30,7 @@
 typedef struct {
 	int fd;
 	int framesWritten;
+	int movieID;
 	th_info ti;
 	th_enc_ctx *th;
 	th_comment tc;
@@ -38,6 +39,7 @@ typedef struct {
 	ogg_page og;
 } TheoraState;
 
+static dispatch_queue_t mRequestQueue;
 static TheoraState mTheora;
 static NSOpenGLContext *mGLContext;
 static NSOpenGLPixelFormat *mGLPixelFormat;
@@ -61,19 +63,28 @@ static void writeTheoraPage(NSString *kind) {
 	char *buf = malloc(totalSize);
 	memcpy(buf, mTheora.og.header, mTheora.og.header_len);
 	memcpy(buf+mTheora.og.header_len, mTheora.og.body, mTheora.og.body_len);
-	NSData *bufData = [NSData dataWithBytes:buf length:totalSize];
-	free(buf);
 
-	NSURL *postURL = [NSURL URLWithString:@"http://localhost:8080/update"];
-	NSMutableURLRequest *postRequest = [NSMutableURLRequest requestWithURL:postURL cachePolicy:NSURLRequestReloadIgnoringLocalCacheData timeoutInterval:1.0];
-	[postRequest setHTTPMethod:@"POST"];
-	[postRequest setHTTPBody:bufData];
-	[postRequest addValue:kind forHTTPHeaderField:@"x-theora-kind"];
-	NSURLResponse *response = NULL;
-	NSError *error = NULL;
-	[NSURLConnection sendSynchronousRequest:postRequest returningResponse:&response error:&error];
+	int currentMovieID = mTheora.movieID;
+	[kind retain];
+	
+	dispatch_async(mRequestQueue, ^{
+		NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+		NSData *bufData = [NSData dataWithBytes:buf length:totalSize];
+		free(buf);
+		NSURL *postURL = [NSURL URLWithString:@"http://labs.toolness.com:8080/update"];
+		NSMutableURLRequest *postRequest = [NSMutableURLRequest requestWithURL:postURL cachePolicy:NSURLRequestReloadIgnoringLocalCacheData timeoutInterval:1.0];
+		[postRequest setHTTPMethod:@"POST"];
+		[postRequest setHTTPBody:bufData];
+		[postRequest addValue:kind forHTTPHeaderField:@"x-theora-kind"];
+		[postRequest addValue:[NSString stringWithFormat:@"%d", currentMovieID] forHTTPHeaderField:@"x-theora-id"];
+		NSURLResponse *response = NULL;
+		NSError *error = NULL;
+		[NSURLConnection sendSynchronousRequest:postRequest returningResponse:&response error:&error];
+		NSLog(@"Connection response: %@   error: %@", response, error);
+		[kind release];
+		[pool release];
+	});
 
-	//NSLog(@"Connection response: %@   error: %@", response, error);
 	NSLog(@"Wrote theora %@ page of size %d bytes.", kind, mTheora.og.header_len + mTheora.og.body_len);
 }
 
@@ -96,7 +107,7 @@ static void createTheoraFile()
 		NSLog(@"ogg_stream_init() failed.");
 	th_info_init(&mTheora.ti);
 	
-	//NSLog(@"Picture size is %dx%d.", mScaledWidth, mScaledHeight);
+	NSLog(@"Picture size is %dx%d.", mScaledWidth, mScaledHeight);
 	
 	/* Must be multiples of 16 */
 	mTheora.ti.frame_width = mScaledWidth;
@@ -108,7 +119,7 @@ static void createTheoraFile()
 	mTheora.ti.fps_numerator = kFPS;
 	mTheora.ti.fps_denominator = 1;
 	
-	//NSLog(@"Frame size is %dx%d, with the picture offset at (%d, %d).", mTheora.ti.frame_width, mTheora.ti.frame_height, mTheora.ti.pic_x, mTheora.ti.pic_y);
+	NSLog(@"Frame size is %dx%d, with the picture offset at (%d, %d).", mTheora.ti.frame_width, mTheora.ti.frame_height, mTheora.ti.pic_x, mTheora.ti.pic_y);
 	
 	/* Are these the right values? */
 	mTheora.ti.quality = kTheoraQuality;
@@ -131,7 +142,8 @@ static void createTheoraFile()
 		NSLog(@"ogg_stream_pageout() failed.");
 	
 	// TODO: Don't hardcode this filename.
-	mTheora.fd = open("/Users/avarma/screencap.ogv", O_WRONLY | O_CREAT | O_TRUNC | O_SYNC);		
+	NSString *filename = [NSString stringWithFormat:@"/Users/atul/screencap-%d.ogv", ++mTheora.movieID];
+	mTheora.fd = open([filename UTF8String], O_WRONLY | O_CREAT | O_TRUNC | O_SYNC);		
 	if (mTheora.fd < 0)
 		NSLog(@"open() failed.");
 	
@@ -243,7 +255,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 
 		if (kEnableJPEG) {
 			CGImageRef myContextImage = CGBitmapContextCreateImage(myContext);
-			NSURL *imageURL = [NSURL URLWithString:@"file:///Users/avarma/Desktop/screencap.jpg"];
+			NSURL *imageURL = [NSURL URLWithString:@"file:///Users/atul/Desktop/screencap.jpg"];
 
 			float compression = 0.1;
 			int orientation = 1;
@@ -350,7 +362,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 
 		// TODO: Why does CVPixelBufferRelease(pixelBuffer) crash us?
 
-		//NSLog(@"Encoded 1 frame @ %dx%d (%d left in queue).", targetWidth, targetHeight, mFramesLeft-1);
+		NSLog(@"Encoded 1 frame @ %dx%d (%d left in queue).", targetWidth, targetHeight, mFramesLeft-1);
 		
 		[mFrameQueueController addItemToFreeQ:reader];			
 	}
@@ -362,6 +374,8 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification {
 	mSelf = self;
+
+	mRequestQueue = dispatch_queue_create("com.toolness.requestQueue", NULL);
 
 	// Insert code here to initialize your application 
 	NSOpenGLPixelFormatAttribute attributes[] = {
@@ -433,6 +447,8 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 	
 	[mGLPixelFormat release];
 	mGLPixelFormat = nil;
+	
+	dispatch_release(mRequestQueue);
 	
 	NSLog(@"Terminating.");
 }

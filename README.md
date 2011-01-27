@@ -9,6 +9,7 @@ I've already attempted to make the client system stream an Ogg Theora file to an
 More recently, I tried chunking the video stream into bite-sized 2-second Theora clips and streaming those, stitching them together on the client-side with JS. This seems to work decently.
 
 Other things to try:
+
 * Pushing JPEG snapshots instead of Theora.
 * Investigating the possibility of WebM streaming.
 * Creating a VNC/[RFB] client using HTML5.
