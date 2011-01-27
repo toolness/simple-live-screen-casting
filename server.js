@@ -11,6 +11,8 @@ var STATIC_FILES = {
 , '/jquery.min.js': 'application/javascript'
 };
 
+var inUpdate = false;
+
 var server = http.createServer(function(req, res) {
   var info = url.parse(req.url);
   var path = info.pathname == '/' ? INDEX_FILE : info.pathname;
@@ -22,18 +24,24 @@ var server = http.createServer(function(req, res) {
     var file = fs.createReadStream(STATIC_FILES_DIR + path);
     sys.pump(file, res);
   } else if (path == '/update') {
+    if (inUpdate) {
+      throw new Error("concurrent updates detected! they must be serial.");
+    }
+    inUpdate = true;
     var kind = req.headers['x-theora-kind'];
+    var movieID = parseInt(req.headers['x-theora-id']);
     clients.sendAll('k' + kind);
     console.log("update", kind);
     req.on('data', function(chunk) {
-      console.log("chunk", chunk.length);
+      //console.log("chunk", chunk.length);//, typeof(chunk), chunk.toString('base64'));
       clients.sendAll('c' + chunk.toString('base64'));
     });
     req.on('end', function(end) {
-      console.log("end");
+      //console.log("end");
       res.writeHead(200, 'OK', {'Content-Type': 'text/plain'});
       res.end('Thanks bud.');
-      clients.sendAll('e');
+      clients.sendAll('e' + movieID);
+      inUpdate = false;
     });
   } else {
     res.writeHead(404, 'Not Found', {'Content-Type': 'text/plain'});
@@ -58,6 +66,7 @@ clients.sendAll = function(string) {
 };
 
 socket.on('connection', function(client) {
+  console.log("CONNECT");
   clients.push(client);
   client.on('message', function(contents) {
     console.log("MESSAGE", contents);
