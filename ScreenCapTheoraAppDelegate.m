@@ -144,10 +144,11 @@ static void createTheoraFile()
 	ogg_stream_packetin(&mTheora.os, &mTheora.op);
 	if (ogg_stream_pageout(&mTheora.os, &mTheora.og) != 1)
 		NSLog(@"ogg_stream_pageout() failed.");
-	
+
+	mTheora.movieID++;
 	if (kEnableTheoraFile) {
 		// TODO: Don't hardcode this filename.
-		NSString *filename = [NSString stringWithFormat:@"/Users/atul/screencap-%d.ogv", ++mTheora.movieID];
+		NSString *filename = [NSString stringWithFormat:@"/Users/atul/screencap-%d.ogv", mTheora.movieID];
 		mTheora.fd = open([filename UTF8String], O_WRONLY | O_CREAT | O_TRUNC | O_SYNC);		
 		if (mTheora.fd < 0)
 			NSLog(@"open() failed.");
