@@ -8,7 +8,6 @@
 a.movie-id {
   display: block;
 }
-
 </style>
 <script src="socket.io/socket.io.js"></script> 
 <script> 
@@ -33,120 +32,34 @@ function makeErrorTrapper(cb) {
   }
 }
 
-function makeMovieBuilder(cb) {
-  var states = {
-    WAITING_FOR_START: 0,
-    WAITING_FOR_END: 1
-  };
-
-  var movieID;  
-  var state;
-  var chunks;
-  
-  function endMovieAndStartNew(firstChunkOfNewMovie, newMovieID) {
-    var allChunks = chunks.join('');
-    //console.log("------------- got a movie of size", allChunks.length);
-    var dataURL = 'data:video/ogg;base64,' + btoa(allChunks);
-    var thisMovieID = movieID;
-    startNewMovie(firstChunkOfNewMovie, newMovieID);
-    cb(dataURL, thisMovieID);
-  }
-
-  function startNewMovie(firstChunk, newMovieID) {
-    movieID = newMovieID;
-    chunks = [];
-    if (firstChunk) {
-      chunks.push(firstChunk);
-      state = states.WAITING_FOR_END;
-    } else
-      state = states.WAITING_FOR_START;
-  }
-
-  startNewMovie();
-  
-  return function buildMovie(packet) {
-    switch (state) {
-    case states.WAITING_FOR_START:
-      if (packet.kind == "start") {
-        state = states.WAITING_FOR_END;
-        movieID = packet.movieID;
-        chunks.push(packet.contents);
-      }
-      break;
-    case states.WAITING_FOR_END:
-      if (packet.kind == "end") {
-        if (packet.movieID != movieID)
-          throw new Error("assertion failure, movieID mismatch");
-        chunks.push(packet.contents);
-        endMovieAndStartNew();
-      } else if (packet.kind == "start") {
-        endMovieAndStartNew(packet.contents, packet.movieID);
-      } else {
-        if (packet.movieID != movieID)
-          throw new Error("assertion failure, movieID mismatch");
-        chunks.push(packet.contents);
-      }
-      break;
-    }
-  }
-}
-
-function makePacketBuilder(cb) {
-  var states = {
-    WAITING_FOR_START: 0,
-    WAITING_FOR_END: 1
-  }
-  var cmds = {
-    START: "k",
-    CHUNK: "c",
-    END: "e"
-  }
-
-  var state;
-  var packet;
-  var chunks;
-
-  function startNewPacket() {
-    state = states.WAITING_FOR_START;
-    chunks = [];
-    packet = {
-      kind: null,
-      contents: null,
-      movieID: null
-    };
-  }
-
-  startNewPacket();
-
-  return function buildPacket(contents) {
-    var cmd = contents[0];
-    var payload = contents.slice(1);
-    switch (state) {
-    case states.WAITING_FOR_START:
-      if (cmd == cmds.START) {
-         packet.kind = payload;
-         state = states.WAITING_FOR_END;
-      }
-      break;
-    case states.WAITING_FOR_END:
-      if (cmd == cmds.CHUNK) {
-        chunks.push(atob(payload));
-      } else if (cmd == cmds.END) {
-        packet.contents = chunks.join('');
-        packet.movieID = parseInt(payload);
-        //console.log("got a packet of size", packet.contents.length);
-        var packetToProcess = packet;
-        startNewPacket();
-        cb(packetToProcess);
-      }
-      break;
-    }
-  };
-}
-
 var container;
-var deadVideo = null;
+var currVideo = null;
 var nextVideo = null;
+
+function videoURL(movieID) {
+  return '/movie/' + movieID + '.ogg';
+}
+
+function makeCurrVideo(movieID) {
+  console.log('makeCurrVideo(' + movieID + ')');
+  currVideo = movieID;
+  var video = document.createElement("video");
+  video.setAttribute("src", videoURL(movieID));
+  video.addEventListener("canplaythrough", function() {
+    console.log("movie", movieID, "can play through. playing it!");
+    video.play();
+    video.addEventListener("ended", function() {
+      container.removeChild(video);
+      currVideo = null;
+      if (nextVideo) {
+        makeCurrVideo(nextVideo);
+        nextVideo = null;
+      }
+    }, false);
+  }, false);
+  container.appendChild(video);
+  video.load();
+}
 
 onload = function() {
   container = document.getElementById("video");
@@ -155,51 +68,19 @@ onload = function() {
   socket.on('connect', function(){
     //console.log("CONNECT");
   });
-  socket.on('message', makeErrorTrapper(makePacketBuilder(makeMovieBuilder(function(dataURL, id) {
+  socket.on('message', makeErrorTrapper(function(movieID) {
+    movieID = parseInt(movieID);
+    console.log(movieID);
     var link = document.createElement("a");
     link.className = "movie-id";
-    link.setAttribute("href", dataURL);
-    link.appendChild(document.createTextNode("Movie #" + id));
+    link.setAttribute("href", videoURL(movieID));
+    link.appendChild(document.createTextNode("Movie #" + movieID));
     document.body.appendChild(link);
-    try {
-      //console.log("got a movie");
-      var video = document.createElement("video");
-      video.setAttribute("src", dataURL);
-      //video.setAttribute("controls", "controls");
-      //video.setAttribute("autoplay", "autoplay");
-      /*video.addEventListener("canplaythrough", function() {
-        if (this.style.display == "inline")
-          this.play();
-        console.log("can play through", this);
-      }, false);*/
-      video.addEventListener("ended", function() {
-        //
-        if (nextVideo) {
-          container.removeChild(video);
-          nextVideo.style.display = "inline";
-          nextVideo.play();
-          nextVideo = null;
-        } else
-          deadVideo = video;
-        //console.log("END");
-      }, false);
-      container.appendChild(video);
-    } catch (e) {
-      if (window.console)
-        console.error("WTF", e);
-    }
-    if (container.children.length > 1 && !deadVideo) {
-      video.style.display = "none";
-      nextVideo = video;
-    } else {
-      if (deadVideo) {
-        container.removeChild(deadVideo);
-        deadVideo = null;
-      }
-      video.style.display = "inline";
-      video.play();
-    }
-  }))));
+    if (currVideo)
+      nextVideo = movieID;
+    else
+      makeCurrVideo(movieID);
+  }));
   socket.on('disconnect', function(){
     //console.log("DISCONNECT");
   });

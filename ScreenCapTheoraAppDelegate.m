@@ -24,7 +24,7 @@
 #define kImageScaling 0.25
 #define kTheoraQuality 10
 #define kTheoraKeyframeGranuleShift 6
-#define kSecondsPerMovie 2
+#define kSecondsPerMovie 5
 #define kFramesPerMovie (kSecondsPerMovie * kFPS)
 
 typedef struct {
@@ -71,7 +71,7 @@ static void writeTheoraPage(NSString *kind) {
 		NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 		NSData *bufData = [NSData dataWithBytes:buf length:totalSize];
 		free(buf);
-		NSURL *postURL = [NSURL URLWithString:@"http://labs.toolness.com:8080/update"];
+		NSURL *postURL = [NSURL URLWithString:@"http://localhost:8080/update"];
 		NSMutableURLRequest *postRequest = [NSMutableURLRequest requestWithURL:postURL cachePolicy:NSURLRequestReloadIgnoringLocalCacheData timeoutInterval:1.0];
 		[postRequest setHTTPMethod:@"POST"];
 		[postRequest setHTTPBody:bufData];

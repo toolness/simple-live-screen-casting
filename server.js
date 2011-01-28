@@ -1,8 +1,25 @@
+// curl -i http://localhost:8080/movie/296.ogg --raw
+
 var http = require('http'),
     io = require('./socket.io'),
     fs = require('fs'),
     sys = require('sys'),
-    url = require('url');
+    url = require('url'),
+    stream = require('stream'),
+    bstream = require('./buffered-stream');
+
+function MovieStream() {
+  var self = new stream.Stream();
+  self.readable = true;
+  self.write = function(chunk) {
+    self.emit('data', chunk);
+  };
+  self.end = function() {
+    self.readable = false;
+    self.emit('end');
+  };
+  return self;
+}
 
 var STATIC_FILES_DIR = './static-files'
 var INDEX_FILE = '/index.html';
@@ -13,11 +30,15 @@ var STATIC_FILES = {
 
 var inUpdate = false;
 
+var movies = {};
+
+var currMovieID;
+
 var server = http.createServer(function(req, res) {
   var info = url.parse(req.url);
   var path = info.pathname == '/' ? INDEX_FILE : info.pathname;
 
-  console.log("path", path);
+  console.log(req.method, path);
 
   if (path in STATIC_FILES) {
     res.writeHead(200, {'Content-Type': STATIC_FILES[path]});
@@ -25,25 +46,63 @@ var server = http.createServer(function(req, res) {
     sys.pump(file, res);
   } else if (path == '/update') {
     if (inUpdate) {
-      throw new Error("concurrent updates detected! they must be serial.");
+      console.warn("concurrent updates detected! they should be serial.");
     }
     inUpdate = true;
     var kind = req.headers['x-theora-kind'];
     var movieID = parseInt(req.headers['x-theora-id']);
-    clients.sendAll('k' + kind);
-    console.log("update", kind);
-    req.on('data', function(chunk) {
-      //console.log("chunk", chunk.length);//, typeof(chunk), chunk.toString('base64'));
-      clients.sendAll('c' + chunk.toString('base64'));
-    });
+    if (!(movieID in movies)) {
+      if (currMovieID !== undefined) {
+        console.log("movie #" + currMovieID + " uploaded.");
+        movies[currMovieID].inputStream.end();
+      }
+      if (kind == "start") {
+        currMovieID = movieID;
+        console.log("beginning upload of movie #" + movieID);
+        movies[movieID] = new bstream.BufferedStream(new MovieStream());
+        clients.sendAll(movieID.toString());
+      } else
+        console.warn("expected first packet to be of kind 'start'!");
+    }
+    if (movieID in movies)
+      req.on('data', function(chunk) {
+        movies[movieID].inputStream.write(chunk);
+      });
     req.on('end', function(end) {
-      //console.log("end");
       res.writeHead(200, 'OK', {'Content-Type': 'text/plain'});
       res.end('Thanks bud.');
-      clients.sendAll('e' + movieID);
       inUpdate = false;
     });
   } else {
+    //console.log("CONNECTION IS " + req.connection);
+    var movieMatch = path.match(/\/movie\/(\d+)\.ogg/);
+    console.log(path, JSON.stringify(req.headers));
+    if (movieMatch) {
+      var movieID = parseInt(movieMatch[1]);
+      if (movieID in movies) {
+        console.log('streaming movie', movieID);
+        res.writeHead(200, 'OK', {
+          'Content-Type': 'video/ogg',
+          'X-Content-Duration': '5.0'
+          //,'Connection': 'close'
+        });
+        var newStream = movies[movieID].clone();
+        
+        res.on('error', function(e) {
+          console.log('OMG EXCEPTION ' + e);
+        });
+        newStream.on('data', function(chunk) {
+          res.write(chunk);
+        });
+        newStream.on('end', function() {
+          console.log("ENDING RESPONSE NOW.");
+          res.end();
+        });
+        //newStream.pipe(res);
+        newStream.resume();
+        return;
+      }
+    }
     res.writeHead(404, 'Not Found', {'Content-Type': 'text/plain'});
     res.end('Not Found: ' + path);
   }
