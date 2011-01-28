@@ -18,6 +18,7 @@
 #import "FrameReader.h"
 
 #define kEnableTheora 1
+#define kEnableTheoraFile 0
 #define kEnableJPEG 0
 #define kNumReaderObjects 20
 #define kFPS 15
@@ -55,9 +56,11 @@ volatile static int mFramesLeft = 0;
 BOOL mShouldStop;
 
 static void writeTheoraPage(NSString *kind) {
-	write(mTheora.fd, mTheora.og.header, mTheora.og.header_len);
-	write(mTheora.fd, mTheora.og.body, mTheora.og.body_len);
-	fsync(mTheora.fd);
+	if (kEnableTheoraFile) {
+		write(mTheora.fd, mTheora.og.header, mTheora.og.header_len);
+		write(mTheora.fd, mTheora.og.body, mTheora.og.body_len);
+		fsync(mTheora.fd);
+	}
 
 	size_t totalSize = mTheora.og.header_len + mTheora.og.body_len;
 	char *buf = malloc(totalSize);
@@ -96,7 +99,8 @@ static void closeTheoraFile()
 		writeTheoraPage(@"end");
 	ogg_stream_clear(&mTheora.os);
 	
-	close(mTheora.fd);
+	if (kEnableTheoraFile)
+		close(mTheora.fd);
 	
 	mTheora.th = NULL;	
 }
@@ -141,14 +145,16 @@ static void createTheoraFile()
 	if (ogg_stream_pageout(&mTheora.os, &mTheora.og) != 1)
 		NSLog(@"ogg_stream_pageout() failed.");
 	
-	// TODO: Don't hardcode this filename.
-	NSString *filename = [NSString stringWithFormat:@"/Users/atul/screencap-%d.ogv", ++mTheora.movieID];
-	mTheora.fd = open([filename UTF8String], O_WRONLY | O_CREAT | O_TRUNC | O_SYNC);		
-	if (mTheora.fd < 0)
-		NSLog(@"open() failed.");
-	
-	fchmod(mTheora.fd, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-	
+	if (kEnableTheoraFile) {
+		// TODO: Don't hardcode this filename.
+		NSString *filename = [NSString stringWithFormat:@"/Users/atul/screencap-%d.ogv", ++mTheora.movieID];
+		mTheora.fd = open([filename UTF8String], O_WRONLY | O_CREAT | O_TRUNC | O_SYNC);		
+		if (mTheora.fd < 0)
+			NSLog(@"open() failed.");
+		
+		fchmod(mTheora.fd, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+	}
+
 	writeTheoraPage(@"start");
 	
 	int ret;
