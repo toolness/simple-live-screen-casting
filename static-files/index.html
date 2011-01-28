@@ -88,11 +88,12 @@ onload = function() {
   socket.on('message', makeErrorTrapper(function(movieID) {
     movieID = parseInt(movieID);
     console.log(movieID);
+    /*
     var link = document.createElement("a");
     link.className = "movie-id";
     link.setAttribute("href", videoURL(movieID));
     link.appendChild(document.createTextNode("Movie #" + movieID));
-    document.body.appendChild(link);
+    document.body.appendChild(link);*/
     if (currVideo)
       nextVideo = movieID;
     else

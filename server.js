@@ -21,7 +21,8 @@ function MovieStream() {
   return self;
 }
 
-var STATIC_FILES_DIR = './static-files'
+var MOVIE_LIFETIME = 30000;
+var STATIC_FILES_DIR = './static-files';
 var INDEX_FILE = '/index.html';
 var STATIC_FILES = {
   '/index.html': 'text/html'
@@ -44,6 +45,11 @@ var server = http.createServer(function(req, res) {
     res.writeHead(200, {'Content-Type': STATIC_FILES[path]});
     var file = fs.createReadStream(STATIC_FILES_DIR + path);
     sys.pump(file, res);
+  } else if (path == '/clear') {
+    for (var movieID in movies)
+      delete movies[movieID];
+    res.writeHead(200, 'OK', {'Content-Type': 'text/plain'});
+    res.end('Deleted all streaming data.');
   } else if (path == '/update') {
     if (inUpdate) {
       console.warn("concurrent updates detected! they should be serial.");
@@ -55,6 +61,10 @@ var server = http.createServer(function(req, res) {
       if (currMovieID !== undefined) {
         console.log("movie #" + currMovieID + " uploaded.");
         movies[currMovieID].inputStream.end();
+        setTimeout(function() {
+          console.log("freeing movie #" + movieID);
+          delete movies[movieID];
+        }, MOVIE_LIFETIME);
       }
       if (kind == "start") {
         currMovieID = movieID;
@@ -76,7 +86,7 @@ var server = http.createServer(function(req, res) {
   } else {
     //console.log("CONNECTION IS " + req.connection);
     var movieMatch = path.match(/\/movie\/(\d+)\.ogg/);
-    console.log(path, JSON.stringify(req.headers));
+    //console.log(path, JSON.stringify(req.headers));
     if (movieMatch) {
       var movieID = parseInt(movieMatch[1]);
       if (movieID in movies) {
@@ -89,13 +99,13 @@ var server = http.createServer(function(req, res) {
         var newStream = movies[movieID].clone();
         
         res.on('error', function(e) {
-          console.log('OMG EXCEPTION ' + e);
+          //console.log('OMG EXCEPTION ' + e);
         });
         newStream.on('data', function(chunk) {
           res.write(chunk);
         });
         newStream.on('end', function() {
-          console.log("ENDING RESPONSE NOW.");
+          //console.log("ENDING RESPONSE NOW.");
           res.end();
         });
         //newStream.pipe(res);
