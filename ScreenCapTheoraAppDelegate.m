@@ -24,7 +24,7 @@
 #define kImageScaling 0.25
 #define kTheoraQuality 10
 #define kTheoraKeyframeGranuleShift 6
-#define kSecondsPerMovie 5
+#define kSecondsPerMovie 2
 #define kFramesPerMovie (kSecondsPerMovie * kFPS)
 
 typedef struct {

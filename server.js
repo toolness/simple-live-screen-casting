@@ -83,7 +83,7 @@ var server = http.createServer(function(req, res) {
         console.log('streaming movie', movieID);
         res.writeHead(200, 'OK', {
           'Content-Type': 'video/ogg',
-          'X-Content-Duration': '5.0'
+          'X-Content-Duration': '2.0'
           //,'Connection': 'close'
         });
         var newStream = movies[movieID].clone();

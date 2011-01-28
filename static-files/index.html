@@ -33,6 +33,7 @@ function makeErrorTrapper(cb) {
 }
 
 var container;
+var endedVideoElement = null;
 var currVideo = null;
 var nextVideo = null;
 
@@ -45,11 +46,27 @@ function makeCurrVideo(movieID) {
   currVideo = movieID;
   var video = document.createElement("video");
   video.setAttribute("src", videoURL(movieID));
+  video.setAttribute("preload", "auto");
+  container.appendChild(video);
+  function watch(names) {
+    names.forEach(function(name) {
+      video.addEventListener(name, function() {
+        console.log(name + "!");
+      }, false);  
+    });
+  }
+  watch(['emptied', 'error', 'suspend', 'progress', 'stalled', 'loadstart']);
+  
   video.addEventListener("canplaythrough", function() {
     console.log("movie", movieID, "can play through. playing it!");
+    if (endedVideoElement) {
+      container.removeChild(endedVideoElement);
+      endedVideoElement = null;
+    }
+    video.style.display = "inline";
     video.play();
     video.addEventListener("ended", function() {
-      container.removeChild(video);
+      endedVideoElement = video;
       currVideo = null;
       if (nextVideo) {
         makeCurrVideo(nextVideo);
@@ -57,7 +74,7 @@ function makeCurrVideo(movieID) {
       }
     }, false);
   }, false);
-  container.appendChild(video);
+  video.style.display = "none";
   video.load();
 }
 
