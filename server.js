@@ -48,6 +48,8 @@ var server = http.createServer(function(req, res) {
   } else if (path == '/clear') {
     for (var movieID in movies)
       delete movies[movieID];
+    currMovieID = undefined;
+    inUpdate = false;
     res.writeHead(200, 'OK', {'Content-Type': 'text/plain'});
     res.end('Deleted all streaming data.');
   } else if (path == '/update') {
@@ -62,8 +64,10 @@ var server = http.createServer(function(req, res) {
         console.log("movie #" + currMovieID + " uploaded.");
         movies[currMovieID].inputStream.end();
         setTimeout(function() {
-          console.log("freeing movie #" + movieID);
-          delete movies[movieID];
+          if (movieID in movies) {
+            console.log("freeing movie #" + movieID);
+            delete movies[movieID];
+          }
         }, MOVIE_LIFETIME);
       }
       if (kind == "start") {
