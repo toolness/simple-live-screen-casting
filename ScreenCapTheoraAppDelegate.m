@@ -2,7 +2,7 @@
 //  ScreenCapTheoraAppDelegate.m
 //  ScreenCapTheora
 //
-//  Created by Atul Varma on 1/22/11.
+//  Created byi Atul Varma on 1/22/11.
 //  Copyright 2011 Mozilla. All rights reserved.
 //
 
@@ -17,6 +17,7 @@
 #import "QueueController.h"
 #import "FrameReader.h"
 
+#define kEnableRawI420 1
 #define kEnableTheora 1
 #define kEnableTheoraFile 0
 #define kEnableJPEG 0
@@ -40,7 +41,12 @@ typedef struct {
 	ogg_page og;
 } TheoraState;
 
+typedef struct {
+	int fd;
+} RawI420State;
+
 static dispatch_queue_t mRequestQueue;
+static RawI420State mRawI420;
 static TheoraState mTheora;
 static NSOpenGLContext *mGLContext;
 static NSOpenGLPixelFormat *mGLPixelFormat;
@@ -310,6 +316,10 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 
 			BGR32toI420(targetWidth, targetHeight, cgDest, v_frame);
 
+			if (kEnableRawI420) {
+				write(mRawI420.fd, v_frame, v_frame_size);
+			}
+			
 			th_ycbcr_buffer v_buffer;
 
 			/* Convert i420 to YCbCr */
@@ -431,11 +441,19 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 	CVDisplayLinkSetOutputCallback(mDisplayLink, displayLinkCallback, NULL);
 	CVDisplayLinkStart(mDisplayLink);
 
+	if (kEnableRawI420) {
+		mRawI420.fd = open("/Users/atul/screencap-rawI420.dat", O_WRONLY | O_CREAT | O_TRUNC);
+		fchmod(mRawI420.fd, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+	}
+	
 	NSLog(@"Initialized.");
 }
 
 - (void)applicationWillTerminate:(NSNotification *)notification
 {
+	if (kEnableRawI420)
+		close(mRawI420.fd);
+	
 	CVDisplayLinkStop(mDisplayLink);
 	CVDisplayLinkRelease(mDisplayLink);
 	mDisplayLink = NULL;
