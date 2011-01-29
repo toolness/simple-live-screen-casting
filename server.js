@@ -60,11 +60,12 @@ var server = http.createServer(function(req, res) {
     inUpdate = true;
     var kind = req.headers['x-theora-kind'];
     var movieID = parseInt(req.headers['x-theora-id']);
+    var duration = parseInt(req.headers['x-content-duration']);
     if (!(movieID in movies)) {
       if (currMovieID !== undefined) {
         console.log("movie #" + currMovieID + " uploaded (" +
                     currMovieSize + " bytes).");
-        movies[currMovieID].inputStream.end();
+        movies[currMovieID].stream.inputStream.end();
         setTimeout(function() {
           if (movieID in movies) {
             console.log("freeing movie #" + movieID);
@@ -76,15 +77,18 @@ var server = http.createServer(function(req, res) {
         currMovieID = movieID;
         currMovieSize = 0;
         console.log("beginning upload of movie #" + movieID);
-        movies[movieID] = new bstream.BufferedStream(new MovieStream());
-        clients.sendAll(movieID.toString());
+        movies[movieID] = {
+          stream: new bstream.BufferedStream(new MovieStream()),
+          duration: duration
+        };
+        clients.sendAll(movieID + ' ' + duration);
       } else
         console.warn("expected first packet to be of kind 'start'!");
     }
     if (movieID in movies)
       req.on('data', function(chunk) {
         currMovieSize += chunk.length;
-        movies[movieID].inputStream.write(chunk);
+        movies[movieID].stream.inputStream.write(chunk);
       });
     req.on('end', function(end) {
       res.writeHead(200, 'OK', {'Content-Type': 'text/plain'});
@@ -101,10 +105,10 @@ var server = http.createServer(function(req, res) {
         console.log('streaming movie', movieID);
         res.writeHead(200, 'OK', {
           'Content-Type': 'video/ogg',
-          'X-Content-Duration': '2.0'
+          'X-Content-Duration': movies[movieID].duration.toString()
           //,'Connection': 'close'
         });
-        var newStream = movies[movieID].clone();
+        var newStream = movies[movieID].stream.clone();
         
         res.on('error', function(e) {
           //console.log('OMG EXCEPTION ' + e);

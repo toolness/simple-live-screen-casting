@@ -85,9 +85,11 @@ onload = function() {
   socket.on('connect', function(){
     //console.log("CONNECT");
   });
-  socket.on('message', makeErrorTrapper(function(movieID) {
-    movieID = parseInt(movieID);
-    console.log(movieID);
+  socket.on('message', makeErrorTrapper(function(message) {
+    var items = message.split(' ');
+    var movieID = parseInt(items[0]);
+    var duration = parseInt(items[1]);
+    //console.log(movieID);
     /*
     var link = document.createElement("a");
     link.className = "movie-id";

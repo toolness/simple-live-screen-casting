@@ -21,8 +21,8 @@
 #define kEnableTheoraFile 0
 #define kEnableJPEG 0
 #define kNumReaderObjects 20
-#define kFPS 15
-#define kImageScaling 0.25
+#define kFPS 5
+#define kImageScaling 0.5
 #define kTheoraQuality 10
 #define kTheoraKeyframeGranuleShift 6
 #define kSecondsPerMovie 2
@@ -79,6 +79,7 @@ static void writeTheoraPage(NSString *kind) {
 		[postRequest setHTTPMethod:@"POST"];
 		[postRequest setHTTPBody:bufData];
 		[postRequest addValue:kind forHTTPHeaderField:@"x-theora-kind"];
+		[postRequest addValue:[NSString stringWithFormat:@"%d", kSecondsPerMovie] forHTTPHeaderField:@"x-content-duration"];
 		[postRequest addValue:[NSString stringWithFormat:@"%d", currentMovieID] forHTTPHeaderField:@"x-theora-id"];
 		NSURLResponse *response = NULL;
 		NSError *error = NULL;
