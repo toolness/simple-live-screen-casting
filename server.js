@@ -34,6 +34,7 @@ var inUpdate = false;
 var movies = {};
 
 var currMovieID;
+var currMovieSize;
 
 var server = http.createServer(function(req, res) {
   var info = url.parse(req.url);
@@ -61,7 +62,8 @@ var server = http.createServer(function(req, res) {
     var movieID = parseInt(req.headers['x-theora-id']);
     if (!(movieID in movies)) {
       if (currMovieID !== undefined) {
-        console.log("movie #" + currMovieID + " uploaded.");
+        console.log("movie #" + currMovieID + " uploaded (" +
+                    currMovieSize + " bytes).");
         movies[currMovieID].inputStream.end();
         setTimeout(function() {
           if (movieID in movies) {
@@ -72,6 +74,7 @@ var server = http.createServer(function(req, res) {
       }
       if (kind == "start") {
         currMovieID = movieID;
+        currMovieSize = 0;
         console.log("beginning upload of movie #" + movieID);
         movies[movieID] = new bstream.BufferedStream(new MovieStream());
         clients.sendAll(movieID.toString());
@@ -80,6 +83,7 @@ var server = http.createServer(function(req, res) {
     }
     if (movieID in movies)
       req.on('data', function(chunk) {
+        currMovieSize += chunk.length;
         movies[movieID].inputStream.write(chunk);
       });
     req.on('end', function(end) {
