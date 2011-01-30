@@ -70,6 +70,8 @@ var server = http.createServer(function(req, res) {
           if (movieID in movies) {
             console.log("freeing movie #" + movieID);
             delete movies[movieID];
+            if (movieID == currMovieID)
+              currMovieID = undefined;
           }
         }, MOVIE_LIFETIME);
       }

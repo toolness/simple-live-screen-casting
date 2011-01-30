@@ -17,14 +17,15 @@
 #import "QueueController.h"
 #import "FrameReader.h"
 
-#define kEnableWebM 1
-#define kEnableTheora 0
+#define kEnableWebM 0
+#define kEnableTheora 1
 #define kEnableTheoraFile 0
 #define kEnableJPEG 0
 #define kNumReaderObjects 20
-#define kFPS 10
-#define kImageScaling 0.5
-#define kTheoraQuality 10
+#define kFPS 8
+#define kImageScaling 0.33
+#define kTheoraBitrate 128000
+//#define kTheoraQuality 10
 #define kTheoraKeyframeGranuleShift 6
 #define kSecondsPerMovie 2
 #define kFramesPerMovie (kSecondsPerMovie * kFPS)
@@ -134,8 +135,8 @@ static void createTheoraFile()
 	NSLog(@"Frame size is %dx%d, with the picture offset at (%d, %d).", mTheora.ti.frame_width, mTheora.ti.frame_height, mTheora.ti.pic_x, mTheora.ti.pic_y);
 	
 	/* Are these the right values? */
-	mTheora.ti.quality = kTheoraQuality;
-	//mTheora.ti.target_bitrate = 128000;
+	//mTheora.ti.quality = kTheoraQuality;
+	mTheora.ti.target_bitrate = kTheoraBitrate;
 	mTheora.ti.colorspace = TH_CS_ITU_REC_470M;
 	mTheora.ti.pixel_fmt = TH_PF_420;
 	mTheora.ti.keyframe_granule_shift = kTheoraKeyframeGranuleShift;
