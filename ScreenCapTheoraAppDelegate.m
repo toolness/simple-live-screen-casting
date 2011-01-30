@@ -17,12 +17,12 @@
 #import "QueueController.h"
 #import "FrameReader.h"
 
-#define kEnableRawI420 1
-#define kEnableTheora 1
+#define kEnableWebM 1
+#define kEnableTheora 0
 #define kEnableTheoraFile 0
 #define kEnableJPEG 0
 #define kNumReaderObjects 20
-#define kFPS 5
+#define kFPS 10
 #define kImageScaling 0.5
 #define kTheoraQuality 10
 #define kTheoraKeyframeGranuleShift 6
@@ -42,11 +42,12 @@ typedef struct {
 } TheoraState;
 
 typedef struct {
-	int fd;
-} RawI420State;
+	NSTask *encoder;
+	NSPipe *pipe;
+} WebMState;
 
 static dispatch_queue_t mRequestQueue;
-static RawI420State mRawI420;
+static WebMState mWebM;
 static TheoraState mTheora;
 static NSOpenGLContext *mGLContext;
 static NSOpenGLPixelFormat *mGLPixelFormat;
@@ -303,11 +304,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 
 		CVPixelBufferUnlockBaseAddress(pixelBuffer, 0);
 
-		if (kEnableTheora) {
-			if (mTheora.framesWritten == 0) {
-				createTheoraFile();
-			}
-			
+		if (kEnableTheora || kEnableWebM) {			
 			/* i420 is 3/2 bytes per pixel */
 			int v_frame_size = targetWidth * targetHeight * 3 / 2;
 			void *v_frame = calloc(v_frame_size, 1);
@@ -316,61 +313,67 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 
 			BGR32toI420(targetWidth, targetHeight, cgDest, v_frame);
 
-			if (kEnableRawI420) {
-				write(mRawI420.fd, v_frame, v_frame_size);
-			}
-			
-			th_ycbcr_buffer v_buffer;
-
-			/* Convert i420 to YCbCr */
-			v_buffer[0].width = targetWidth;
-			v_buffer[0].stride = targetWidth;
-			v_buffer[0].height = targetHeight;
-			
-			v_buffer[1].width = (v_buffer[0].width >> 1);
-			v_buffer[1].height = (v_buffer[0].height >> 1);
-			v_buffer[1].stride = v_buffer[1].width;
-			
-			v_buffer[2].width = v_buffer[1].width;
-			v_buffer[2].height = v_buffer[1].height;
-			v_buffer[2].stride = v_buffer[1].stride;
-			
-			v_buffer[0].data = v_frame;
-			v_buffer[1].data = v_frame + v_buffer[0].width * v_buffer[0].height;
-			v_buffer[2].data = v_buffer[1].data + v_buffer[0].width * v_buffer[0].height / 4;
-
-			switch (th_encode_ycbcr_in(mTheora.th, v_buffer)) {
-				case TH_EFAULT:
-					NSLog(@"th_encode_ycbcr_in() returned TH_EFAULT.");
-					break;
-				case TH_EINVAL:
-					NSLog(@"th_encode_ycbcr_in() returned TH_EINVAL.");
-					break;
-				case 0:
-					// Success!
-					break;
-				default:
-					NSLog(@"th_encode_ycbcr_in() returned an invalid response.");
-			}
-			
-			mTheora.framesWritten++;
-
-			int isLastPacket = 0;
-			
-			if (mTheora.framesWritten == kFramesPerMovie)
-				isLastPacket = 1;
-			
-			if (!th_encode_packetout(mTheora.th, isLastPacket, &mTheora.op))
-				NSLog(@"th_encode_packetout() failed.");
-			
-			ogg_stream_packetin(&mTheora.os, &mTheora.op);
-			while (ogg_stream_pageout(&mTheora.os, &mTheora.og)) {
-				writeTheoraPage(@"page");
+			if (kEnableWebM) {
+				[[mWebM.pipe fileHandleForWriting] writeData:[NSData dataWithBytes:v_frame length:v_frame_size]];
 			}
 
-			if (mTheora.framesWritten == kFramesPerMovie) {
-				closeTheoraFile();
-				mTheora.framesWritten = 0;
+			if (kEnableTheora) {
+				if (mTheora.framesWritten == 0) {
+					createTheoraFile();
+				}
+				
+				th_ycbcr_buffer v_buffer;
+
+				/* Convert i420 to YCbCr */
+				v_buffer[0].width = targetWidth;
+				v_buffer[0].stride = targetWidth;
+				v_buffer[0].height = targetHeight;
+				
+				v_buffer[1].width = (v_buffer[0].width >> 1);
+				v_buffer[1].height = (v_buffer[0].height >> 1);
+				v_buffer[1].stride = v_buffer[1].width;
+				
+				v_buffer[2].width = v_buffer[1].width;
+				v_buffer[2].height = v_buffer[1].height;
+				v_buffer[2].stride = v_buffer[1].stride;
+				
+				v_buffer[0].data = v_frame;
+				v_buffer[1].data = v_frame + v_buffer[0].width * v_buffer[0].height;
+				v_buffer[2].data = v_buffer[1].data + v_buffer[0].width * v_buffer[0].height / 4;
+
+				switch (th_encode_ycbcr_in(mTheora.th, v_buffer)) {
+					case TH_EFAULT:
+						NSLog(@"th_encode_ycbcr_in() returned TH_EFAULT.");
+						break;
+					case TH_EINVAL:
+						NSLog(@"th_encode_ycbcr_in() returned TH_EINVAL.");
+						break;
+					case 0:
+						// Success!
+						break;
+					default:
+						NSLog(@"th_encode_ycbcr_in() returned an invalid response.");
+				}
+				
+				mTheora.framesWritten++;
+
+				int isLastPacket = 0;
+				
+				if (mTheora.framesWritten == kFramesPerMovie)
+					isLastPacket = 1;
+				
+				if (!th_encode_packetout(mTheora.th, isLastPacket, &mTheora.op))
+					NSLog(@"th_encode_packetout() failed.");
+				
+				ogg_stream_packetin(&mTheora.os, &mTheora.op);
+				while (ogg_stream_pageout(&mTheora.os, &mTheora.og)) {
+					writeTheoraPage(@"page");
+				}
+
+				if (mTheora.framesWritten == kFramesPerMovie) {
+					closeTheoraFile();
+					mTheora.framesWritten = 0;
+				}
 			}
 
 			free(v_frame);
@@ -424,7 +427,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 	mScaledWidth = width * kImageScaling;
 	mScaledHeight = height * kImageScaling;
 
-	if (kEnableTheora) {
+	if (kEnableWebM || kEnableTheora) {
 		NSLog(@"Using %s.", th_version_string());
 		// Crop down so we're a multiple of 16, which is an easy way of satisfying Theora encoding requirements.
 		// TODO: Crop *up* instead, or make this better somehow?
@@ -441,9 +444,26 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 	CVDisplayLinkSetOutputCallback(mDisplayLink, displayLinkCallback, NULL);
 	CVDisplayLinkStart(mDisplayLink);
 
-	if (kEnableRawI420) {
-		mRawI420.fd = open("/Users/atul/screencap-rawI420.dat", O_WRONLY | O_CREAT | O_TRUNC);
-		fchmod(mRawI420.fd, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+	if (kEnableWebM) {
+		mWebM.pipe = [[NSPipe alloc] init];
+		mWebM.encoder = [[NSTask alloc] init];
+		NSMutableArray *args = [NSMutableArray array];
+		
+		[args addObject:[NSString stringWithFormat:@"--width=%d", mScaledWidth]];
+		[args addObject:[NSString stringWithFormat:@"--height=%d", mScaledHeight]];
+		[args addObject:[NSString stringWithFormat:@"--fps=%d/1", kFPS]];
+		[args addObject:@"-p"];
+		[args addObject:@"1"];
+		[args addObject:@"-t"];
+		[args addObject:@"4"];
+		[args addObject:@"-o"];
+		[args addObject:@"/Users/atul/screencap.webm"];
+		[args addObject:@"-"];
+		[args addObjectsFromArray:[NSArray arrayWithObjects:@"--rt", @"--cpu-used=4", @"--end-usage=1", @"--target-bitrate=100", nil]];
+		[mWebM.encoder setLaunchPath:@"/Users/atul/Documents/read-only/libvpx/vpxenc"];
+		[mWebM.encoder setArguments:args];
+		[mWebM.encoder setStandardInput:mWebM.pipe];
+		[mWebM.encoder launch];
 	}
 	
 	NSLog(@"Initialized.");
@@ -451,9 +471,6 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 
 - (void)applicationWillTerminate:(NSNotification *)notification
 {
-	if (kEnableRawI420)
-		close(mRawI420.fd);
-	
 	CVDisplayLinkStop(mDisplayLink);
 	CVDisplayLinkRelease(mDisplayLink);
 	mDisplayLink = NULL;
@@ -464,6 +481,12 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 
 	if (kEnableTheora)
 		closeTheoraFile();
+
+	if (kEnableWebM) {
+		[[mWebM.pipe fileHandleForWriting] closeFile];
+		[mWebM.pipe release];
+		[mWebM.encoder release];
+	}
 	
 	[mFrameQueueController release];
 	mFrameQueueController = nil;
