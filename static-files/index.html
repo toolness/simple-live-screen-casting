@@ -32,78 +32,92 @@ function makeErrorTrapper(cb) {
   }
 }
 
-var container;
-var endedVideoElement = null;
-var currVideo = null;
-var nextVideo = null;
+var gVideoContainer,
+    gCurrentlyLoadingVideo,
+    gCurrentlyPlayingVideo,
+    gCurrentlyEndedVideo,
+    gReadyToPlayVideo,
+    gLatestMovieInfo;
 
 function videoURL(movieID) {
   return '/movie/' + movieID + '.ogg';
 }
 
-function makeCurrVideo(movieID) {
-  console.log('makeCurrVideo(' + movieID + ')');
-  currVideo = movieID;
+function startLoadingVideo(movieInfo) {
+  if (gCurrentlyLoadingVideo)
+    throw new Error("Assertion failure, a video is already being loaded!");
   var video = document.createElement("video");
-  video.setAttribute("src", videoURL(movieID));
+  video.setAttribute("src", videoURL(movieInfo.id));
   video.setAttribute("preload", "auto");
-  container.appendChild(video);
-  function watch(names) {
-    names.forEach(function(name) {
-      video.addEventListener(name, function() {
-        console.log(name + "!");
-      }, false);  
-    });
-  }
-  watch(['emptied', 'error', 'suspend', 'progress', 'stalled', 'loadstart']);
-  
-  video.addEventListener("canplaythrough", function() {
-    console.log("movie", movieID, "can play through. playing it!");
-    if (endedVideoElement) {
-      container.removeChild(endedVideoElement);
-      endedVideoElement = null;
+  video.setAttribute("id", movieInfo.id.toString());
+  gVideoContainer.appendChild(video);
+  video.addEventListener("progress", function isBuffered() {
+    if (video.buffered.length == 1 &&
+        video.buffered.end(0) == movieInfo.duration) {
+      video.removeEventListener("progress", isBuffered, false);
+      gCurrentlyLoadingVideo = null;
+      onNetworkIdle();
+      onVideoReadyToPlay(video);
     }
-    video.style.display = "inline";
-    video.play();
-    video.addEventListener("ended", function() {
-      endedVideoElement = video;
-      currVideo = null;
-      if (nextVideo) {
-        makeCurrVideo(nextVideo);
-        nextVideo = null;
-      }
-    }, false);
+  }, false);
+  video.addEventListener("ended", function() {
+    onVideoEnded(video);
   }, false);
   video.style.display = "none";
   video.load();
+  gCurrentlyLoadingVideo = video;
+}
+
+function onVideoEnded(video) {
+  if (gCurrentlyEndedVideo)
+    throw new Error("Assertion failure, a video is already ended!");
+  gCurrentlyPlayingVideo = null;
+  gCurrentlyEndedVideo = video;
+  if (gReadyToPlayVideo) {
+    onVideoReadyToPlay(gReadyToPlayVideo);
+    gReadyToPlayVideo = null;
+  }
+}
+
+function onVideoReadyToPlay(video) {
+  if (gCurrentlyPlayingVideo) {
+    if (gReadyToPlayVideo) {
+      gVideoContainer.removeChild(gReadyToPlayVideo);
+    }
+    gReadyToPlayVideo = video;
+  } else {
+    video.style.display = "inline";
+    video.play();
+    if (gCurrentlyEndedVideo) {
+      gVideoContainer.removeChild(gCurrentlyEndedVideo);
+      gCurrentlyEndedVideo = null;
+    }
+    gCurrentlyPlayingVideo = video;
+  }
+}
+
+function onNetworkIdle() {
+  if (gLatestMovieInfo) {
+    startLoadingVideo(gLatestMovieInfo);
+    gLatestMovieInfo = null;
+  }
 }
 
 onload = function() {
-  container = document.getElementById("video");
+  gVideoContainer = document.getElementById("video");
   var socket = new io.Socket(); 
   socket.connect();
-  socket.on('connect', function(){
-    //console.log("CONNECT");
-  });
+  socket.on('connect', function(){});
   socket.on('message', makeErrorTrapper(function(message) {
     var items = message.split(' ');
-    var movieID = parseInt(items[0]);
-    var duration = parseInt(items[1]);
-    //console.log(movieID);
-    /*
-    var link = document.createElement("a");
-    link.className = "movie-id";
-    link.setAttribute("href", videoURL(movieID));
-    link.appendChild(document.createTextNode("Movie #" + movieID));
-    document.body.appendChild(link);*/
-    if (currVideo)
-      nextVideo = movieID;
-    else
-      makeCurrVideo(movieID);
+    gLatestMovieInfo = {
+      id: parseInt(items[0]),
+      duration: parseInt(items[1])
+    };
+    if (!gCurrentlyLoadingVideo)
+      onNetworkIdle();
   }));
-  socket.on('disconnect', function(){
-    //console.log("DISCONNECT");
-  });
+  socket.on('disconnect', function(){});
 };
 </script>
 <p id="video"></p>
