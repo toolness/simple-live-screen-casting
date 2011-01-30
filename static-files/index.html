@@ -51,24 +51,35 @@ function startLoadingVideo(movieInfo) {
   video.setAttribute("preload", "auto");
   video.setAttribute("id", movieInfo.id.toString());
   gVideoContainer.appendChild(video);
-  video.addEventListener("progress", function isReadyToPlay() {
-    if (video.buffered.length == 1 &&
-        video.buffered.end(0) > (movieInfo.duration/3)) {
-      video.removeEventListener("progress", isReadyToPlay, false);
-      onVideoReadyToPlay(video);
-    }
+
+  video.addEventListener("canplay", function readyToPlay() {
+    video.removeEventListener("canplay", readyToPlay, false);
+    onVideoReadyToPlay(video);    
   }, false);
-  video.addEventListener("progress", function isBuffered() {
-    if (video.buffered.length == 1 &&
-        video.buffered.end(0) == movieInfo.duration) {
-      video.removeEventListener("progress", isBuffered, false);
-      gCurrentlyLoadingVideo = null;
-      onNetworkIdle();
-    }
-  }, false);
+
+  function onVideoBuffered() {
+    gCurrentlyLoadingVideo = null;
+    onNetworkIdle();
+  }
+
+  if ('buffered' in video)
+    video.addEventListener("progress", function checkIsBuffered() {
+      if (video.buffered.length == 1 &&
+          video.buffered.end(0) == movieInfo.duration) {
+        video.removeEventListener("progress", checkIsBuffered, false);
+        onVideoBuffered();
+      }
+    }, false);
+  else
+    video.addEventListener("canplaythrough", function almostDoneLoading() {
+      video.removeEventListener("canplaythrough", almostDoneLoading, false);
+      onVideoBuffered();
+    }, false);
+
   video.addEventListener("ended", function() {
     onVideoEnded(video);
   }, false);
+
   video.style.display = "none";
   video.load();
   gCurrentlyLoadingVideo = video;
