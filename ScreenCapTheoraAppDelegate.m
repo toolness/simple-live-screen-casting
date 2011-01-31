@@ -47,6 +47,7 @@ typedef struct {
 	NSPipe *pipe;
 } WebMState;
 
+static BOOL mIsRecording = NO;
 static dispatch_queue_t mRequestQueue;
 static WebMState mWebM;
 static TheoraState mTheora;
@@ -398,7 +399,57 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 	mSelf = self;
 
 	mRequestQueue = dispatch_queue_create("com.toolness.requestQueue", NULL);
+	
+	NSLog(@"Initialized.");
+}
 
+- (void)applicationWillTerminate:(NSNotification *)notification
+{
+	if (mIsRecording)
+		[self stopRecording:self];
+
+	dispatch_release(mRequestQueue);
+	
+	NSLog(@"Terminating.");
+}
+
+- (IBAction)stopRecording:(id)sender
+{
+	CVDisplayLinkStop(mDisplayLink);
+	CVDisplayLinkRelease(mDisplayLink);
+	mDisplayLink = NULL;
+	
+	mShouldStop = YES;
+	
+	while (mFramesLeft) {}
+	
+	if (kEnableTheora)
+		closeTheoraFile();
+	
+	if (kEnableWebM) {
+		[[mWebM.pipe fileHandleForWriting] closeFile];
+		[mWebM.pipe release];
+		[mWebM.encoder release];
+	}
+	
+	[mFrameQueueController release];
+	mFrameQueueController = nil;
+	
+	[mGLContext release];
+	mGLContext = nil;
+	
+	[mGLPixelFormat release];
+	mGLPixelFormat = nil;
+	
+	mIsRecording = NO;
+	[startRecording setEnabled:YES];
+	[stopRecording setEnabled:NO];
+}
+
+- (IBAction)startRecording:(id)sender
+{
+	mShouldStop = NO;
+	
 	// Insert code here to initialize your application 
 	NSOpenGLPixelFormatAttribute attributes[] = {
 		NSOpenGLPFAFullScreen,
@@ -409,25 +460,25 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 	
 	mGLPixelFormat = [[NSOpenGLPixelFormat alloc] initWithAttributes:attributes];
 	NSAssert(mGLPixelFormat != nil, @"NSOpenGLPixelFormat creation failed.");
-
+	
 	mGLContext = [[NSOpenGLContext alloc] initWithFormat:mGLPixelFormat shareContext:nil];
 	NSAssert(mGLContext != nil, @"NSOpenGLContext creation failed.");
 	[mGLContext makeCurrentContext];
 	[mGLContext setFullScreen];
-
+	
 	CGDirectDisplayID displayID = CGMainDisplayID();
 	mDisplayRect = CGDisplayBounds(displayID);
-
+	
 	unsigned int width = mDisplayRect.size.width;
 	unsigned int height = mDisplayRect.size.height;
 	
 	mFrameQueueController = [[QueueController alloc] initWithReaderObjects:kNumReaderObjects
-													 aContext:mGLContext pixelsWide:width pixelsHigh:height
-													 xOffset:0 yOffset:0];
-
+																  aContext:mGLContext pixelsWide:width pixelsHigh:height
+																   xOffset:0 yOffset:0];
+	
 	mScaledWidth = width * kImageScaling;
 	mScaledHeight = height * kImageScaling;
-
+	
 	if (kEnableWebM || kEnableTheora) {
 		NSLog(@"Using %s.", th_version_string());
 		// Crop down so we're a multiple of 16, which is an easy way of satisfying Theora encoding requirements.
@@ -435,16 +486,16 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 		mScaledWidth = ((mScaledWidth - 15) & ~0xF) + 16;
 		mScaledHeight = ((mScaledHeight - 15) & ~0xF) + 16;		
 	}
-
+	
 	mLastTime = [NSDate timeIntervalSinceReferenceDate];
 	mFPSInterval = 1.0 / kFPS;
-
+	
 	CVDisplayLinkCreateWithCGDisplay(kCGDirectMainDisplay, &mDisplayLink);
 	NSAssert(mDisplayLink != NULL, @"Couldn't create display link for the main display.");
 	CVDisplayLinkSetCurrentCGDisplay(mDisplayLink, kCGDirectMainDisplay);
 	CVDisplayLinkSetOutputCallback(mDisplayLink, displayLinkCallback, NULL);
 	CVDisplayLinkStart(mDisplayLink);
-
+	
 	if (kEnableWebM) {
 		mWebM.pipe = [[NSPipe alloc] init];
 		mWebM.encoder = [[NSTask alloc] init];
@@ -466,41 +517,10 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 		[mWebM.encoder setStandardInput:mWebM.pipe];
 		[mWebM.encoder launch];
 	}
-	
-	NSLog(@"Initialized.");
-}
 
-- (void)applicationWillTerminate:(NSNotification *)notification
-{
-	CVDisplayLinkStop(mDisplayLink);
-	CVDisplayLinkRelease(mDisplayLink);
-	mDisplayLink = NULL;
-
-	mShouldStop = YES;
-	
-	while (mFramesLeft) {}
-
-	if (kEnableTheora)
-		closeTheoraFile();
-
-	if (kEnableWebM) {
-		[[mWebM.pipe fileHandleForWriting] closeFile];
-		[mWebM.pipe release];
-		[mWebM.encoder release];
-	}
-	
-	[mFrameQueueController release];
-	mFrameQueueController = nil;
-		
-	[mGLContext release];
-	mGLContext = nil;
-	
-	[mGLPixelFormat release];
-	mGLPixelFormat = nil;
-	
-	dispatch_release(mRequestQueue);
-	
-	NSLog(@"Terminating.");
+	mIsRecording = YES;
+	[startRecording setEnabled:NO];
+	[stopRecording setEnabled:YES];
 }
 
 @end

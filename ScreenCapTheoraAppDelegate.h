@@ -10,10 +10,13 @@
 
 @interface ScreenCapTheoraAppDelegate : NSObject <NSApplicationDelegate> {
     NSWindow *window;
+	IBOutlet NSButton *startRecording;
+	IBOutlet NSButton *stopRecording;
 }
 
 @property (assign) IBOutlet NSWindow *window;
 
 - (void)processFrameSynchronized:(id)param;
-
+- (IBAction)startRecording:(id)sender;
+- (IBAction)stopRecording:(id)sender;
 @end
