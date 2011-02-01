@@ -6,6 +6,9 @@
 //  Copyright 2011 Mozilla. All rights reserved.
 //
 
+// Much of the Theora-related code in this file was originally taken
+// from the Mozilla Rainbow project: https://github.com/mozilla/rainbow
+
 #include <sys/stat.h>
 #include <ogg/ogg.h>
 #include <theora/theoraenc.h>

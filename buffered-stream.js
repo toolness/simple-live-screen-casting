@@ -1,3 +1,8 @@
+// The BufferedStream is a simple wrapper for an input stream that 
+// remembers its contents, so that at any time it can be easily cloned
+// and read from the beginning by multiple clients, regardless of
+// whether the original input stream has ended.
+
 var stream = require('stream');
 
 function BufferedStream(inputStream, chunks) {

@@ -1,3 +1,6 @@
+// This file was originally taken from the Mozilla Rainbow project:
+// https://github.com/mozilla/rainbow
+
 #include "Convert.h"
 
 enum {

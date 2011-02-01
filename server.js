@@ -1,4 +1,6 @@
-// curl -i http://localhost:8080/movie/296.ogg --raw
+// This is a simple node.js server that allows a Desktop client to stream
+// in lots of Ogg Theora clips, which are streamed to browser clients and
+// stitched-together on the client side.
 
 var http = require('http'),
     io = require('./socket.io'),
