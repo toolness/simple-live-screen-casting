@@ -17,23 +17,49 @@
 #import "QueueController.h"
 #import "FrameReader.h"
 
+// Whether to write the user's screen to a WebM file.
 #define kEnableWebM 0
+
+// Whether to write the user's screen to a Theora stream that's sent to a node.js server for streaming to other browsers.
 #define kEnableTheora 1
+
+// Whether to write the user's screen to a Theora file.
 #define kEnableTheoraFile 0
+
+// Whether to write snapshots of the user's screen to JPEG files.
 #define kEnableJPEG 0
+
+// The number of screen readers in existence at one time.
 #define kNumReaderObjects 20
+
+// Current frames per second of each movie.
 #define kFPS 8
+
+// Amount to scale the user's screen.
 #define kImageScaling 0.33
+
+// Bitrate of the Theora stream.
 #define kTheoraBitrate 128000
-//#define kTheoraQuality 10
+
+// How often to create keyframes in the Theora stream. For more information, see:
+// http://www.theora.org/doc/libtheora-1.0/structth__info.html#693ca4ab11fbc0c3f32594b4bb8766ed
 #define kTheoraKeyframeGranuleShift 6
+
+// Number of seconds each movie lasts. When this period is over, a new movie is created. Set to -1 if you only want one movie that is arbitrarily long.
 #define kSecondsPerMovie 2
+
+// Number of frames each movie lasts.
 #define kFramesPerMovie (kSecondsPerMovie * kFPS)
 
 typedef struct {
+	// File descriptor to use for writing to a Theora file, if kEnableTheoraFile is set.
 	int fd;
+	// Keeps track of the number of frames we've written to the current movie.
 	int framesWritten;
+	// An application-lifetime unique ID for the current movie being recorded
 	int movieID;
+	
+	// These are Theora and Ogg-specific data structures.
 	th_info ti;
 	th_enc_ctx *th;
 	th_comment tc;
@@ -43,25 +69,46 @@ typedef struct {
 } TheoraState;
 
 typedef struct {
+	// The vpxenc (VP8 encoder) process.
 	NSTask *encoder;
+	
+	// Pipe to send a raw I420 stream of frames to vpxenc.
 	NSPipe *pipe;
 } WebMState;
 
+// Whether or not we're currently recording.
 static BOOL mIsRecording = NO;
+
+// A dispatch queue for sending Ogg stream pages to the node.js server.
 static dispatch_queue_t mRequestQueue;
+
 static WebMState mWebM;
 static TheoraState mTheora;
 static NSOpenGLContext *mGLContext;
 static NSOpenGLPixelFormat *mGLPixelFormat;
 static CVDisplayLinkRef mDisplayLink;
-static CGRect mDisplayRect;
 static QueueController *mFrameQueueController;
+
+// The actual size of the user's screen.
+static CGRect mDisplayRect;
+
+// Singleton instance of our app delegate.
 static ScreenCapTheoraAppDelegate *mSelf;
+
+// These variables are used to keep track of the frame rate.
 static NSTimeInterval mLastTime;
 static NSTimeInterval mFPSInterval;
+
+// The width of each movie frame, after scaling factors are applied.
 static unsigned int mScaledWidth;
+
+// The height of each movie frame, after scaling factors are applied.
 static unsigned int mScaledHeight;
+
+// The number of frames left to be encoded.
 volatile static int mFramesLeft = 0;
+
+// Whether or not any auxiliary threads spawned by the main thread should stop at their earliest possible convenience.
 BOOL mShouldStop;
 
 static void writeTheoraPage(NSString *kind) {
@@ -92,6 +139,7 @@ static void writeTheoraPage(NSString *kind) {
 		[postRequest addValue:[NSString stringWithFormat:@"%d", currentMovieID] forHTTPHeaderField:@"x-theora-id"];
 		NSURLResponse *response = NULL;
 		NSError *error = NULL;
+		// TODO: Not sure whether NSURLConnection objects are pooled/pipelined/etc by OS X, but if they're not, initiating a new socket connection for each Ogg page isn't very efficient.
 		[NSURLConnection sendSynchronousRequest:postRequest returningResponse:&response error:&error];
 		NSLog(@"Connection response: %@   error: %@", response, error);
 		[kind release];
@@ -136,7 +184,6 @@ static void createTheoraFile()
 	NSLog(@"Frame size is %dx%d, with the picture offset at (%d, %d).", mTheora.ti.frame_width, mTheora.ti.frame_height, mTheora.ti.pic_x, mTheora.ti.pic_y);
 	
 	/* Are these the right values? */
-	//mTheora.ti.quality = kTheoraQuality;
 	mTheora.ti.target_bitrate = kTheoraBitrate;
 	mTheora.ti.colorspace = TH_CS_ITU_REC_470M;
 	mTheora.ti.pixel_fmt = TH_PF_420;
