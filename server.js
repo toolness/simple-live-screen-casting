@@ -7,21 +7,7 @@ var http = require('http'),
     fs = require('fs'),
     sys = require('sys'),
     url = require('url'),
-    stream = require('stream'),
-    bstream = require('./buffered-stream');
-
-function MovieStream() {
-  var self = new stream.Stream();
-  self.readable = true;
-  self.write = function(chunk) {
-    self.emit('data', chunk);
-  };
-  self.end = function() {
-    self.readable = false;
-    self.emit('end');
-  };
-  return self;
-}
+    movieStream = require('./movie-stream');
 
 var MOVIE_LIFETIME = 30000;
 var STATIC_FILES_DIR = './static-files';
@@ -67,7 +53,7 @@ var server = http.createServer(function(req, res) {
       if (currMovieID !== undefined) {
         console.log("movie #" + currMovieID + " uploaded (" +
                     currMovieSize + " bytes).");
-        movies[currMovieID].stream.inputStream.end();
+        movies[currMovieID].end();
         setTimeout(function() {
           if (movieID in movies) {
             console.log("freeing movie #" + movieID);
@@ -81,10 +67,7 @@ var server = http.createServer(function(req, res) {
         currMovieID = movieID;
         currMovieSize = 0;
         console.log("beginning upload of movie #" + movieID);
-        movies[movieID] = {
-          stream: new bstream.BufferedStream(new MovieStream()),
-          duration: duration
-        };
+        movies[movieID] = new movieStream.BufferedStreamingMovie(duration);
         clients.sendAll(movieID + ' ' + duration);
       } else
         console.warn("expected first packet to be of kind 'start'!");
@@ -92,7 +75,7 @@ var server = http.createServer(function(req, res) {
     if (movieID in movies)
       req.on('data', function(chunk) {
         currMovieSize += chunk.length;
-        movies[movieID].stream.inputStream.write(chunk);
+        movies[movieID].write(chunk);
       });
     req.on('end', function(end) {
       res.writeHead(200, 'OK', {'Content-Type': 'text/plain'});
@@ -109,7 +92,7 @@ var server = http.createServer(function(req, res) {
           'Content-Type': 'video/ogg',
           'X-Content-Duration': movies[movieID].duration.toString()
         });
-        var newStream = movies[movieID].stream.clone();
+        var newStream = movies[movieID].createReadableStream();
         
         newStream.on('data', function(chunk) {
           res.write(chunk);
