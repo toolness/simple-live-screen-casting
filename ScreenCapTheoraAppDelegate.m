@@ -23,11 +23,14 @@
 // Whether to write the user's screen to a WebM file.
 #define kEnableWebM 0
 
-// Whether to write the user's screen to a Theora stream that's sent to a node.js server for streaming to other browsers.
-#define kEnableTheora 1
-
 // Whether to write the user's screen to a Theora file.
 #define kEnableTheoraFile 0
+
+// Whether to write the user's screen to a Theora stream that's sent to a node.js server for streaming to other browsers.
+#define kEnableTheoraStreaming 1
+
+// Whether any kind of Theora output is enabled at all.
+#define kEnableTheora (kEnableTheoraFile || kEnableTheoraStreaming)
 
 // Whether to write snapshots of the user's screen to JPEG files.
 #define kEnableJPEG 0
@@ -127,33 +130,35 @@ static void writeTheoraPage(NSString *kind) {
 		fsync(mTheora.fd);
 	}
 
-	size_t totalSize = mTheora.og.header_len + mTheora.og.body_len;
-	char *buf = malloc(totalSize);
-	memcpy(buf, mTheora.og.header, mTheora.og.header_len);
-	memcpy(buf+mTheora.og.header_len, mTheora.og.body, mTheora.og.body_len);
+	if (kEnableTheoraStreaming) {
+		size_t totalSize = mTheora.og.header_len + mTheora.og.body_len;
+		char *buf = malloc(totalSize);
+		memcpy(buf, mTheora.og.header, mTheora.og.header_len);
+		memcpy(buf+mTheora.og.header_len, mTheora.og.body, mTheora.og.body_len);
 
-	int currentMovieID = mTheora.movieID;
-	[kind retain];
-	
-	dispatch_async(mRequestQueue, ^{
-		NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-		NSData *bufData = [NSData dataWithBytes:buf length:totalSize];
-		free(buf);
-		NSURL *postURL = [NSURL URLWithString:@"http://localhost:8080/update"];
-		NSMutableURLRequest *postRequest = [NSMutableURLRequest requestWithURL:postURL cachePolicy:NSURLRequestReloadIgnoringLocalCacheData timeoutInterval:1.0];
-		[postRequest setHTTPMethod:@"POST"];
-		[postRequest setHTTPBody:bufData];
-		[postRequest addValue:kind forHTTPHeaderField:@"x-theora-kind"];
-		[postRequest addValue:[NSString stringWithFormat:@"%d", kSecondsPerMovie] forHTTPHeaderField:@"x-content-duration"];
-		[postRequest addValue:[NSString stringWithFormat:@"%d", currentMovieID] forHTTPHeaderField:@"x-theora-id"];
-		NSURLResponse *response = NULL;
-		NSError *error = NULL;
-		// TODO: Not sure whether NSURLConnection objects are pooled/pipelined/etc by OS X, but if they're not, initiating a new socket connection for each Ogg page isn't very efficient.
-		[NSURLConnection sendSynchronousRequest:postRequest returningResponse:&response error:&error];
-		NSLog(@"Connection response: %@   error: %@", response, error);
-		[kind release];
-		[pool release];
-	});
+		int currentMovieID = mTheora.movieID;
+		[kind retain];
+		
+		dispatch_async(mRequestQueue, ^{
+			NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+			NSData *bufData = [NSData dataWithBytes:buf length:totalSize];
+			free(buf);
+			NSURL *postURL = [NSURL URLWithString:@"http://localhost:8080/update"];
+			NSMutableURLRequest *postRequest = [NSMutableURLRequest requestWithURL:postURL cachePolicy:NSURLRequestReloadIgnoringLocalCacheData timeoutInterval:1.0];
+			[postRequest setHTTPMethod:@"POST"];
+			[postRequest setHTTPBody:bufData];
+			[postRequest addValue:kind forHTTPHeaderField:@"x-theora-kind"];
+			[postRequest addValue:[NSString stringWithFormat:@"%d", kSecondsPerMovie] forHTTPHeaderField:@"x-content-duration"];
+			[postRequest addValue:[NSString stringWithFormat:@"%d", currentMovieID] forHTTPHeaderField:@"x-theora-id"];
+			NSURLResponse *response = NULL;
+			NSError *error = NULL;
+			// TODO: Not sure whether NSURLConnection objects are pooled/pipelined/etc by OS X, but if they're not, initiating a new socket connection for each Ogg page isn't very efficient.
+			[NSURLConnection sendSynchronousRequest:postRequest returningResponse:&response error:&error];
+			NSLog(@"Connection response: %@   error: %@", response, error);
+			[kind release];
+			[pool release];
+		});
+	}
 
 	NSLog(@"Wrote theora %@ page of size %d bytes.", kind, mTheora.og.header_len + mTheora.og.body_len);
 }
