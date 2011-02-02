@@ -2,7 +2,7 @@
 //  ScreenCapTheoraAppDelegate.m
 //  ScreenCapTheora
 //
-//  Created byi Atul Varma on 1/22/11.
+//  Created by Atul Varma on 1/22/11.
 //  Copyright 2011 Mozilla. All rights reserved.
 //
 
@@ -102,11 +102,17 @@ static ScreenCapTheoraAppDelegate *mSelf;
 static NSTimeInterval mLastTime;
 static NSTimeInterval mFPSInterval;
 
-// The width of each movie frame, after scaling factors are applied.
+// The width of each movie frame's picture, after scaling factors are applied.
 static unsigned int mScaledWidth;
 
-// The height of each movie frame, after scaling factors are applied.
+// The height of each movie frame's picture, after scaling factors are applied.
 static unsigned int mScaledHeight;
+
+// The width of each movie frame, including padding to make it a multiple of 16.
+static unsigned int mFrameWidth;
+
+// The height of each movie frame, including padding to make it a multiple of 16.
+static unsigned int mFrameHeight;
 
 // The number of frames left to be encoded.
 volatile static int mFramesLeft = 0;
@@ -171,12 +177,10 @@ static void createTheoraFile()
 	if (ogg_stream_init(&mTheora.os, rand()))
 		NSLog(@"ogg_stream_init() failed.");
 	th_info_init(&mTheora.ti);
-	
-	NSLog(@"Picture size is %dx%d.", mScaledWidth, mScaledHeight);
-	
+
 	/* Must be multiples of 16 */
-	mTheora.ti.frame_width = mScaledWidth;
-	mTheora.ti.frame_height = mScaledHeight;
+	mTheora.ti.frame_width = mFrameWidth;
+	mTheora.ti.frame_height = mFrameHeight;
 	mTheora.ti.pic_width = mScaledWidth;
 	mTheora.ti.pic_height = mScaledHeight;
 	mTheora.ti.pic_x = 0;
@@ -184,7 +188,7 @@ static void createTheoraFile()
 	mTheora.ti.fps_numerator = kFPS;
 	mTheora.ti.fps_denominator = 1;
 	
-	NSLog(@"Frame size is %dx%d, with the picture offset at (%d, %d).", mTheora.ti.frame_width, mTheora.ti.frame_height, mTheora.ti.pic_x, mTheora.ti.pic_y);
+	NSLog(@"Frame size is %dx%d, picture size is %dx%d.", mTheora.ti.frame_width, mTheora.ti.frame_height, mTheora.ti.pic_width, mTheora.ti.pic_height);
 	
 	/* Are these the right values? */
 	mTheora.ti.target_bitrate = kTheoraBitrate;
@@ -297,17 +301,15 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 		void *src = CVPixelBufferGetBaseAddress(pixelBuffer);
 		unsigned int width = CVPixelBufferGetWidth(pixelBuffer);
 		unsigned int height = CVPixelBufferGetHeight(pixelBuffer);
-		unsigned int targetWidth = mScaledWidth;
-		unsigned int targetHeight = mScaledHeight;
 		size_t bytes_per_row = CVPixelBufferGetBytesPerRow(pixelBuffer);
-		size_t target_bytes_per_row = targetWidth * 4;
+		size_t target_bytes_per_row = mFrameWidth * 4;
 
 		if (bytes_per_row != width * 4)
 			NSLog(@"Expected bytes per row to be %d but got %d.", width * 4, bytes_per_row);
 		
-		void *cgDest = calloc(target_bytes_per_row * targetHeight, 1);
+		void *cgDest = calloc(target_bytes_per_row * mFrameHeight, 1);
 		CGColorSpaceRef myColorSpace = CGColorSpaceCreateWithName(kCGColorSpaceGenericRGB);
-		CGContextRef myContext = CGBitmapContextCreate(cgDest, targetWidth, targetHeight, 8, target_bytes_per_row, myColorSpace, kCGImageAlphaPremultipliedLast);
+		CGContextRef myContext = CGBitmapContextCreate(cgDest, mFrameWidth, mFrameHeight, 8, target_bytes_per_row, myColorSpace, kCGImageAlphaPremultipliedLast);
 
 		CGDataProviderRef pixelBufferData = CGDataProviderCreateWithData(NULL, src, bytes_per_row * height, NULL);
 		CGImageRef cgImage = CGImageCreate(width, height, 8, 32, bytes_per_row, myColorSpace, kCGImageAlphaPremultipliedLast, pixelBufferData, NULL, YES, kCGRenderingIntentDefault);
@@ -315,8 +317,8 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 		CGRect dest;
 		dest.origin.x = 0;
 		dest.origin.y = 0;
-		dest.size.width = targetWidth;
-		dest.size.height = targetHeight;
+		dest.size.width = mScaledWidth;
+		dest.size.height = mScaledHeight;
 
 		CGContextDrawImage(myContext, dest, cgImage);
 
@@ -358,12 +360,12 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 
 		if (kEnableTheora || kEnableWebM) {			
 			/* i420 is 3/2 bytes per pixel */
-			int v_frame_size = targetWidth * targetHeight * 3 / 2;
+			int v_frame_size = mFrameWidth * mFrameHeight * 3 / 2;
 			void *v_frame = calloc(v_frame_size, 1);
 			if (v_frame == NULL)
 				NSLog(@"calloc() failed.");
 
-			BGR32toI420(targetWidth, targetHeight, cgDest, v_frame);
+			BGR32toI420(mFrameWidth, mFrameHeight, cgDest, v_frame);
 
 			if (kEnableWebM) {
 				[[mWebM.pipe fileHandleForWriting] writeData:[NSData dataWithBytes:v_frame length:v_frame_size]];
@@ -377,9 +379,9 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 				th_ycbcr_buffer v_buffer;
 
 				/* Convert i420 to YCbCr */
-				v_buffer[0].width = targetWidth;
-				v_buffer[0].stride = targetWidth;
-				v_buffer[0].height = targetHeight;
+				v_buffer[0].width = mFrameWidth;
+				v_buffer[0].stride = mFrameWidth;
+				v_buffer[0].height = mFrameHeight;
 				
 				v_buffer[1].width = (v_buffer[0].width >> 1);
 				v_buffer[1].height = (v_buffer[0].height >> 1);
@@ -435,7 +437,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 
 		// TODO: Why does CVPixelBufferRelease(pixelBuffer) crash us?
 
-		NSLog(@"Encoded 1 frame @ %dx%d (%d left in queue).", targetWidth, targetHeight, mFramesLeft-1);
+		NSLog(@"Encoded 1 frame @ %dx%d (%d left in queue).", mFrameWidth, mFrameHeight, mFramesLeft-1);
 		
 		[mFrameQueueController addItemToFreeQ:reader];			
 	}
@@ -528,15 +530,22 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 	
 	mScaledWidth = width * kImageScaling;
 	mScaledHeight = height * kImageScaling;
+
+	NSLog(@"Native screen size is %dx%d, scaled size is %dx%d.", width, height, mScaledWidth, mScaledHeight);
+
+	unsigned int horizPadding = 0;
+	unsigned int vertPadding = 0;
 	
 	if (kEnableWebM || kEnableTheora) {
 		NSLog(@"Using %s.", th_version_string());
-		// Crop down so we're a multiple of 16, which is an easy way of satisfying Theora encoding requirements.
-		// TODO: Crop *up* instead, or make this better somehow?
-		mScaledWidth = ((mScaledWidth - 15) & ~0xF) + 16;
-		mScaledHeight = ((mScaledHeight - 15) & ~0xF) + 16;		
+		// Crop up so we're a multiple of 16, which is an easy way of satisfying Theora encoding requirements.
+		horizPadding = ((mScaledWidth + 15) & ~0xF) - mScaledWidth;
+		vertPadding = ((mScaledHeight + 15) & ~0xF) - mScaledHeight;
 	}
 	
+	mFrameWidth = mScaledWidth + horizPadding;
+	mFrameHeight = mScaledHeight + vertPadding;
+
 	mLastTime = [NSDate timeIntervalSinceReferenceDate];
 	mFPSInterval = 1.0 / kFPS;
 	
