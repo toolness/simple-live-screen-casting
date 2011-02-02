@@ -3,3 +3,4 @@
 *.pbxuser
 .DS_Store
 build
+server/socket.io
