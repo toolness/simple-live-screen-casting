@@ -7,8 +7,7 @@ var http = require('http'),
     fs = require('fs'),
     sys = require('sys'),
     url = require('url'),
-    movieStream = require('./movie-stream'),
-    byteRanges = require('./byte-ranges');
+    movieStream = require('./movie-stream');
 
 // TODO: This lifetime should really be dependent on the duration
 // of the clip being stored.
