@@ -100,9 +100,7 @@ var server = http.createServer(function(req, res) {
       inUpdate = false;
     });
   } else {
-    //console.log("CONNECTION IS " + req.connection);
     var movieMatch = path.match(/\/movie\/(\d+)\.ogg/);
-    //console.log(path, JSON.stringify(req.headers));
     if (movieMatch) {
       var movieID = parseInt(movieMatch[1]);
       if (movieID in movies) {
@@ -110,21 +108,15 @@ var server = http.createServer(function(req, res) {
         res.writeHead(200, 'OK', {
           'Content-Type': 'video/ogg',
           'X-Content-Duration': movies[movieID].duration.toString()
-          //,'Connection': 'close'
         });
         var newStream = movies[movieID].stream.clone();
         
-        res.on('error', function(e) {
-          //console.log('OMG EXCEPTION ' + e);
-        });
         newStream.on('data', function(chunk) {
           res.write(chunk);
         });
         newStream.on('end', function() {
-          //console.log("ENDING RESPONSE NOW.");
           res.end();
         });
-        //newStream.pipe(res);
         newStream.resume();
         return;
       }
