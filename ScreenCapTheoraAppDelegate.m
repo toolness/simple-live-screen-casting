@@ -136,6 +136,9 @@ static void writeTheoraPage(NSString *kind) {
 		memcpy(buf, mTheora.og.header, mTheora.og.header_len);
 		memcpy(buf+mTheora.og.header_len, mTheora.og.body, mTheora.og.body_len);
 
+		NSString *baseURL = [[NSUserDefaults standardUserDefaults] stringForKey:@"BroadcastURL"];
+		[baseURL retain];
+
 		int currentMovieID = mTheora.movieID;
 		[kind retain];
 		
@@ -143,7 +146,7 @@ static void writeTheoraPage(NSString *kind) {
 			NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 			NSData *bufData = [NSData dataWithBytes:buf length:totalSize];
 			free(buf);
-			NSURL *postURL = [NSURL URLWithString:@"http://localhost:8080/update"];
+			NSURL *postURL = [NSURL URLWithString:[baseURL stringByAppendingString:@"/update"]];
 			NSMutableURLRequest *postRequest = [NSMutableURLRequest requestWithURL:postURL cachePolicy:NSURLRequestReloadIgnoringLocalCacheData timeoutInterval:1.0];
 			[postRequest setHTTPMethod:@"POST"];
 			[postRequest setHTTPBody:bufData];
@@ -155,6 +158,7 @@ static void writeTheoraPage(NSString *kind) {
 			// TODO: Not sure whether NSURLConnection objects are pooled/pipelined/etc by OS X, but if they're not, initiating a new socket connection for each Ogg page isn't very efficient.
 			[NSURLConnection sendSynchronousRequest:postRequest returningResponse:&response error:&error];
 			NSLog(@"Connection response: %@   error: %@", response, error);
+			[baseURL release];
 			[kind release];
 			[pool release];
 		});
@@ -457,6 +461,15 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 
 	mRequestQueue = dispatch_queue_create("com.toolness.requestQueue", NULL);
 	
+	NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+	NSDictionary *appDefaults = [NSDictionary dictionaryWithObject:@"http://localhost:8080" forKey:@"BroadcastURL"];
+	[defaults registerDefaults:appDefaults];
+
+	NSString *broadcastURL = [[NSUserDefaults standardUserDefaults] stringForKey:@"BroadcastURL"];
+	[urlField setStringValue:broadcastURL];
+
+	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(someTextChanged:) name:NSTextDidChangeNotification object:nil];
+	
 	NSLog(@"Initialized.");
 }
 
@@ -500,6 +513,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 	
 	mIsRecording = NO;
 	[startRecording setEnabled:YES];
+	[urlField setEnabled:YES];
 	[stopRecording setEnabled:NO];
 }
 
@@ -584,7 +598,17 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 
 	mIsRecording = YES;
 	[startRecording setEnabled:NO];
+	[urlField setEnabled:NO];
 	[stopRecording setEnabled:YES];
+}
+
+- (void)someTextChanged:(NSNotification *)notification
+{
+	NSText *text = (NSText *)[notification object];
+	id field = [text delegate];
+	if (field == urlField) {
+		[[NSUserDefaults standardUserDefaults] setObject:[text string] forKey:@"BroadcastURL"];
+	}
 }
 
 @end

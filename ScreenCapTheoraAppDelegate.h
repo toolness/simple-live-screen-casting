@@ -12,6 +12,7 @@
     NSWindow *window;
 	IBOutlet NSButton *startRecording;
 	IBOutlet NSButton *stopRecording;
+	IBOutlet NSTextField *urlField;
 }
 
 @property (assign) IBOutlet NSWindow *window;
