@@ -7,8 +7,11 @@ var http = require('http'),
     fs = require('fs'),
     sys = require('sys'),
     url = require('url'),
-    movieStream = require('./movie-stream');
+    movieStream = require('./movie-stream'),
+    byteRanges = require('./byte-ranges');
 
+// TODO: This lifetime should really be dependent on the duration
+// of the clip being stored.
 var MOVIE_LIFETIME = 30000;
 var STATIC_FILES_DIR = './static-files';
 var INDEX_FILE = '/index.html';
@@ -88,19 +91,48 @@ var server = http.createServer(function(req, res) {
       var movieID = parseInt(movieMatch[1]);
       if (movieID in movies) {
         console.log('streaming movie', movieID);
-        res.writeHead(200, 'OK', {
-          'Content-Type': 'video/ogg',
-          'X-Content-Duration': movies[movieID].duration.toString()
-        });
         var newStream = movies[movieID].createReadableStream();
         
-        newStream.on('data', function(chunk) {
-          res.write(chunk);
-        });
-        newStream.on('end', function() {
-          res.end();
-        });
-        newStream.resume();
+        var headers = {
+          'Content-Type': 'video/ogg',
+          'X-Content-Duration': movies[movieID].duration.toString()
+        };
+
+        function sendStream(newStream) {
+          res.writeHead(200, 'OK', headers);
+
+          newStream.on('data', function(chunk) {
+            res.write(chunk);
+          });
+          newStream.on('end', function() {
+            res.end();
+          });
+          newStream.resume();
+        }
+
+        if ('user-agent' in req.headers &&
+            req.headers['user-agent'].indexOf('Chrome') != -1) {
+
+          // Chrome seems to really want us to provide content length
+          // and not use chunked transfer encoding, so we'll play
+          // it their way, but that means Chrome clients will have
+          // higher latency than others.
+
+          function sendToChrome(newStream) {
+            headers['Content-Length'] = newStream.bufferedLength.toString();
+            sendStream(newStream);
+          }
+
+          if (!newStream.isFullyBuffered) {
+            newStream.on('end', function() {
+              sendToChrome(newStream.clone());
+            });
+            newStream.resume();
+          } else
+            sendToChrome(newStream);
+        } else
+          sendStream(newStream);
+
         return;
       }
     }

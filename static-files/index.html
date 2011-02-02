@@ -51,7 +51,7 @@ function startLoadingVideo(movieInfo) {
   video.setAttribute("preload", "auto");
   video.setAttribute("id", movieInfo.id.toString());
   gVideoContainer.appendChild(video);
-
+  
   video.addEventListener("canplay", function readyToPlay() {
     video.removeEventListener("canplay", readyToPlay, false);
     onVideoReadyToPlay(video);    
@@ -62,7 +62,12 @@ function startLoadingVideo(movieInfo) {
     onNetworkIdle();
   }
 
-  if ('buffered' in video)
+  var isChrome = navigator.userAgent &&
+                 navigator.userAgent.indexOf('Chrome') != -1;
+  
+  if ('buffered' in video && !isChrome)
+    // video.buffered isn't available in Firefox 3.6, and
+    // Chrome reports the time ranges weirdly.
     video.addEventListener("progress", function checkIsBuffered() {
       if (video.buffered.length == 1 &&
           video.buffered.end(0) == movieInfo.duration) {
@@ -71,14 +76,27 @@ function startLoadingVideo(movieInfo) {
       }
     }, false);
   else
+    // This works on FF 3.6 and Chrome.
     video.addEventListener("canplaythrough", function almostDoneLoading() {
       video.removeEventListener("canplaythrough", almostDoneLoading, false);
       onVideoBuffered();
     }, false);
 
-  video.addEventListener("ended", function() {
-    onVideoEnded(video);
-  }, false);
+  if (isChrome) {
+    // Chrome behaves very strangely when it comes to telling whether
+    // a movie has ended, so we'll just use timeupdate info.
+    video.addEventListener("timeupdate", function checkEndedOnChrome() {
+      if (video.played.length == 1 &&
+          video.played.end(0) > movieInfo.duration) {
+        video.removeEventListener("timeupdate", checkEndedOnChrome, false);
+        onVideoEnded(video);
+      }
+    }, false);
+  } else
+    // This works fine on Firefox 3.6 and above.
+    video.addEventListener("ended", function() {
+      onVideoEnded(video);
+    }, false);
 
   video.style.display = "none";
   video.load();

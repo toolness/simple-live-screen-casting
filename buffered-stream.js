@@ -6,6 +6,9 @@
 var stream = require('stream');
 
 function BufferedStream(inputStream, chunks) {
+  if (!'readable' in inputStream)
+    throw new Error("inputStream.readable is undefined");
+
   var self = new stream.Stream();
   var pos = 0;
   var isPaused = true;
@@ -26,6 +29,28 @@ function BufferedStream(inputStream, chunks) {
       }
     }
   }
+
+  Object.defineProperty(self, "bufferedChunks", {
+    get: function() {
+      return chunks.slice();
+    }
+  });
+  
+  Object.defineProperty(self, "isFullyBuffered", {
+    get: function() {
+      return isEnded;
+    }
+  });
+
+  Object.defineProperty(self, "bufferedLength", {
+    get: function() {
+      // TODO: We should probably just cache this instead of
+      // re-computing it every time.
+      var length = 0;
+      chunks.forEach(function(chunk) { length += chunk.length });
+      return length;
+    }
+  });
 
   self.readable = true;
   
