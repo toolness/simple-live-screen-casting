@@ -8,7 +8,7 @@
 
 #import <Cocoa/Cocoa.h>
 
-@interface ScreenCapTheoraAppDelegate : NSObject <NSApplicationDelegate> {
+@interface ScreenCapTheoraAppDelegate : NSObject <NSApplicationDelegate, NSWindowDelegate> {
     NSWindow *window;
 	IBOutlet NSButton *startRecording;
 	IBOutlet NSButton *stopRecording;

@@ -672,4 +672,10 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 											  forKey:@"FPS"];
 }
 
+- (void)windowWillClose:(NSNotification *)notification
+{
+	if ([notification object] == window)
+		[[NSApplication sharedApplication] terminate:nil];
+}
+
 @end
