@@ -25,7 +25,7 @@ Once the basics are working, further improvements might include:
 # TODOs
 
 * Refactor concurrency model to use operation queues (`NSOperationQueue`, `NSOperation`, etc); see Apple's [Concurrency Programming Guide] for more on this.
-* Add controls to allow user to specify options at run-time that are currently hard-coded at build time. For instance, the URL of the server to connect to, the movie's bitrate, etc.
+* Add more controls to allow user to specify options at run-time that are currently hard-coded at build time.
 * Figure out how efficiently the video content is being streamed from the broadcaster to the server, and potentially improve it. The separate `NSURLConnection` objects we create are actually pooled using HTTP keep-alive by the underlying OS, but the size of HTTP headers compared to payload data might still make them really inefficient.
 * Add support for the streaming server to serve many different channels of video, rather than just one.
 
