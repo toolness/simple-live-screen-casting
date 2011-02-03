@@ -201,7 +201,7 @@ static void createTheoraFile()
 	mTheora.ti.pic_width = mScaledWidth;
 	mTheora.ti.pic_height = mScaledHeight;
 	mTheora.ti.pic_x = 0;
-	mTheora.ti.pic_y = 0;
+	mTheora.ti.pic_y = mFrameHeight - mScaledHeight;
 	mTheora.ti.fps_numerator = mFPS;
 	mTheora.ti.fps_denominator = 1;
 	
