@@ -120,6 +120,9 @@ static unsigned int mFrameHeight;
 // The number of frames left to be encoded.
 volatile static int mFramesLeft = 0;
 
+// The number of bytes left to send.
+volatile static int mBytesLeft = 0;
+
 // Whether or not any auxiliary threads spawned by the main thread should stop at
 // their earliest possible convenience.
 BOOL mShouldStop;
@@ -142,8 +145,18 @@ static void writeTheoraPage(NSString *kind) {
 
 		int currentMovieID = mTheora.movieID;
 		[kind retain];
+
+		@synchronized(mRecordingMutex) { mBytesLeft += totalSize; }
 		
 		dispatch_async(mRequestQueue, ^{
+			if (mShouldStop) {
+				free(buf);
+				[kind release];
+				[baseURL release];
+				@synchronized(mRecordingMutex) { mBytesLeft -= totalSize; }
+				return;
+			}
+			
 			NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 			NSData *bufData = [NSData dataWithBytes:buf length:totalSize];
 			free(buf);
@@ -160,15 +173,18 @@ static void writeTheoraPage(NSString *kind) {
 			   forHTTPHeaderField:@"x-theora-id"];
 			NSURLResponse *response = NULL;
 			NSError *error = NULL;
-			// TODO: Not sure whether NSURLConnection objects are pooled/pipelined/etc by OS X, but if they're not,
-			// initiating a new socket connection for each Ogg page isn't very efficient.
+			// TODO: Connections to the same host/port are pooled with HTTP keep-alive by OS X,
+			// but even still, sending a separate request for each Ogg page isn't necessarily
+			// a great idea. The overhead of sending HTTP headers, for instance, should be
+			// taken into account.
 			[NSURLConnection sendSynchronousRequest:postRequest
 								  returningResponse:&response
 											  error:&error];
-			NSLog(@"Connection response: %@   error: %@", response, error);
+			NSLog(@"Connection response: %@   error: %@   total bytes left: %d", response, error, mBytesLeft);
 			[baseURL release];
 			[kind release];
 			[pool release];
+			@synchronized(mRecordingMutex) { mBytesLeft -= totalSize; }
 		});
 	}
 
@@ -282,13 +298,15 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 	NSAutoreleasePool *pool = [NSAutoreleasePool new];
 	
 	FrameReader *freeReader = [mFrameQueueController removeOldestItemFromFreeQ];
-	[freeReader setBufferReadTime:time];
-	[freeReader readScreenAsyncOnSeparateThread];
-    [freeReader release];
+	if (freeReader && !mShouldStop) {
+		@synchronized(mRecordingMutex) { mFramesLeft++; }
+		[freeReader setBufferReadTime:time];
+		[freeReader readScreenAsyncOnSeparateThread];
+		[freeReader release];
+	}
     
 	FrameReader *filledReader = [mFrameQueueController removeOldestItemFromFilledQ];
 	if (filledReader) {
-		@synchronized(mRecordingMutex) { mFramesLeft++; }
 		[NSThread detachNewThreadSelector:@selector(processFrameSynchronized:)
 								 toTarget:mSelf
 							   withObject:filledReader];
@@ -307,19 +325,19 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 {   
     NSAutoreleasePool *pool = [NSAutoreleasePool new];
     
-	@synchronized([ScreenCapTheoraAppDelegate class]) {
-		if (mShouldStop) {
-			@synchronized(mRecordingMutex) { mFramesLeft--; }
-			[pool release];
-			return;
-		}
-
-        
+	@synchronized([ScreenCapTheoraAppDelegate class]) {        
 		FrameReader *reader = (FrameReader *)param;
 		
 		CVPixelBufferRef pixelBuffer = [reader readScreenAsyncFinish];
 		if (CVPixelBufferIsPlanar(pixelBuffer))
 			NSLog(@"TODO: Support planar pixel buffers!");
+
+		if (mShouldStop) {
+			[mFrameQueueController addItemToFreeQ:reader];
+			[pool release];
+			@synchronized(mRecordingMutex) { mFramesLeft--; }
+			return;
+		}
 		
 		CVPixelBufferLockBaseAddress(pixelBuffer, 0);
 		void *src = CVPixelBufferGetBaseAddress(pixelBuffer);
@@ -513,19 +531,21 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 }
 
 - (IBAction)stopRecording:(id)sender
-{
+{	
+	mShouldStop = YES;
+
+	BOOL isDone = NO;
+
+	while (!isDone) {
+		@synchronized(mRecordingMutex) {
+			isDone = (mFramesLeft == 0) && (mBytesLeft == 0);
+		}
+		usleep(10000);
+	}
+
 	CVDisplayLinkStop(mDisplayLink);
 	CVDisplayLinkRelease(mDisplayLink);
 	mDisplayLink = NULL;
-	
-	mShouldStop = YES;
-
-	static int framesLeft = -1;
-
-	while (framesLeft) {
-		@synchronized(mRecordingMutex) { framesLeft = mFramesLeft; }
-		usleep(10000);
-	}
 	
 	if (kEnableTheora)
 		closeTheoraFile();
@@ -564,6 +584,8 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 		NSString *baseURL = [[NSUserDefaults standardUserDefaults] stringForKey:@"BroadcastURL"];
 		[baseURL retain];
 
+		@synchronized(mRecordingMutex) { mBytesLeft += 1; }
+
 		dispatch_async(mRequestQueue, ^{
 			NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 			NSURL *postURL = [NSURL URLWithString:[baseURL stringByAppendingString:@"/clear"]];
@@ -579,6 +601,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 			NSLog(@"Clear connection response: %@   error: %@", response, error);
 			[baseURL release];
 			[pool release];
+			@synchronized(mRecordingMutex) { mBytesLeft -= 1; }
 		});
 	}
 	
