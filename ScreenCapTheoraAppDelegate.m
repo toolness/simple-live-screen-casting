@@ -90,6 +90,7 @@ static NSOpenGLContext *mGLContext;
 static NSOpenGLPixelFormat *mGLPixelFormat;
 static CVDisplayLinkRef mDisplayLink;
 static QueueController *mFrameQueueController;
+static NSString *mRecordingMutex;
 
 // Current frames per second of each movie.
 static int mFPS;
@@ -287,7 +288,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
     
 	FrameReader *filledReader = [mFrameQueueController removeOldestItemFromFilledQ];
 	if (filledReader) {
-		mFramesLeft++;
+		@synchronized(mRecordingMutex) { mFramesLeft++; }
 		[NSThread detachNewThreadSelector:@selector(processFrameSynchronized:)
 								 toTarget:mSelf
 							   withObject:filledReader];
@@ -308,7 +309,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
     
 	@synchronized([ScreenCapTheoraAppDelegate class]) {
 		if (mShouldStop) {
-			mFramesLeft--;
+			@synchronized(mRecordingMutex) { mFramesLeft--; }
 			[pool release];
 			return;
 		}
@@ -470,7 +471,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 		[mFrameQueueController addItemToFreeQ:reader];			
 	}
 
-	mFramesLeft--;
+	@synchronized(mRecordingMutex) { mFramesLeft--; }
 
 	[pool release];
 }
@@ -480,6 +481,8 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 
 	mRequestQueue = dispatch_queue_create("com.toolness.requestQueue", NULL);
 	
+	mRecordingMutex = [[NSString alloc] initWithString:@"Recording Mutex"];
+
 	NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
 	NSDictionary *appDefaults = [NSDictionary dictionaryWithObjectsAndKeys:
 								 @"http://localhost:8080",@"BroadcastURL",
@@ -503,6 +506,9 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 
 	dispatch_release(mRequestQueue);
 	
+	[mRecordingMutex release];
+	mRecordingMutex = nil;
+	
 	NSLog(@"Terminating.");
 }
 
@@ -513,8 +519,13 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 	mDisplayLink = NULL;
 	
 	mShouldStop = YES;
-	
-	while (mFramesLeft) {}
+
+	static int framesLeft = -1;
+
+	while (framesLeft) {
+		@synchronized(mRecordingMutex) { framesLeft = mFramesLeft; }
+		usleep(10000);
+	}
 	
 	if (kEnableTheora)
 		closeTheoraFile();
