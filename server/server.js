@@ -9,14 +9,11 @@ var http = require('http'),
     url = require('url'),
     movieStream = require('./movie-stream');
 
-// TODO: This lifetime should really be dependent on the duration
-// of the clip being stored.
 var MOVIE_LIFETIME = 30000;
 var STATIC_FILES_DIR = './static-files';
 var INDEX_FILE = '/index.html';
 var STATIC_FILES = {
   '/index.html': 'text/html'
-, '/jquery.min.js': 'application/javascript'
 };
 
 var inUpdate = false;
@@ -63,7 +60,7 @@ var server = http.createServer(function(req, res) {
             if (movieID == currMovieID)
               currMovieID = undefined;
           }
-        }, MOVIE_LIFETIME);
+        }, MOVIE_LIFETIME + (duration*1000));
       }
       if (kind == "start") {
         currMovieID = movieID;
