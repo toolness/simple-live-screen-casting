@@ -26,7 +26,8 @@
 // Whether to write the user's screen to a Theora file.
 #define kEnableTheoraFile 0
 
-// Whether to write the user's screen to a Theora stream that's sent to a node.js server for streaming to other browsers.
+// Whether to write the user's screen to a Theora stream that's sent to a node.js
+// server for streaming to other browsers.
 #define kEnableTheoraStreaming 1
 
 // Whether any kind of Theora output is enabled at all.
@@ -48,7 +49,8 @@
 // http://www.theora.org/doc/libtheora-1.0/structth__info.html#693ca4ab11fbc0c3f32594b4bb8766ed
 #define kTheoraKeyframeGranuleShift 6
 
-// Number of seconds each movie lasts. When this period is over, a new movie is created. Set to -1 if you only want one movie that is arbitrarily long.
+// Number of seconds each movie lasts. When this period is over, a new movie is created.
+// Set to -1 if you only want one movie that is arbitrarily long.
 #define kSecondsPerMovie 2
 
 typedef struct {
@@ -117,7 +119,8 @@ static unsigned int mFrameHeight;
 // The number of frames left to be encoded.
 volatile static int mFramesLeft = 0;
 
-// Whether or not any auxiliary threads spawned by the main thread should stop at their earliest possible convenience.
+// Whether or not any auxiliary threads spawned by the main thread should stop at
+// their earliest possible convenience.
 BOOL mShouldStop;
 
 static void writeTheoraPage(NSString *kind) {
@@ -144,16 +147,23 @@ static void writeTheoraPage(NSString *kind) {
 			NSData *bufData = [NSData dataWithBytes:buf length:totalSize];
 			free(buf);
 			NSURL *postURL = [NSURL URLWithString:[baseURL stringByAppendingString:@"/update"]];
-			NSMutableURLRequest *postRequest = [NSMutableURLRequest requestWithURL:postURL cachePolicy:NSURLRequestReloadIgnoringLocalCacheData timeoutInterval:1.0];
+			NSMutableURLRequest *postRequest = [NSMutableURLRequest requestWithURL:postURL
+																	   cachePolicy:NSURLRequestReloadIgnoringLocalCacheData
+																   timeoutInterval:1.0];
 			[postRequest setHTTPMethod:@"POST"];
 			[postRequest setHTTPBody:bufData];
 			[postRequest addValue:kind forHTTPHeaderField:@"x-theora-kind"];
-			[postRequest addValue:[NSString stringWithFormat:@"%d", kSecondsPerMovie] forHTTPHeaderField:@"x-content-duration"];
-			[postRequest addValue:[NSString stringWithFormat:@"%d", currentMovieID] forHTTPHeaderField:@"x-theora-id"];
+			[postRequest addValue:[NSString stringWithFormat:@"%d", kSecondsPerMovie]
+			   forHTTPHeaderField:@"x-content-duration"];
+			[postRequest addValue:[NSString stringWithFormat:@"%d", currentMovieID]
+			   forHTTPHeaderField:@"x-theora-id"];
 			NSURLResponse *response = NULL;
 			NSError *error = NULL;
-			// TODO: Not sure whether NSURLConnection objects are pooled/pipelined/etc by OS X, but if they're not, initiating a new socket connection for each Ogg page isn't very efficient.
-			[NSURLConnection sendSynchronousRequest:postRequest returningResponse:&response error:&error];
+			// TODO: Not sure whether NSURLConnection objects are pooled/pipelined/etc by OS X, but if they're not,
+			// initiating a new socket connection for each Ogg page isn't very efficient.
+			[NSURLConnection sendSynchronousRequest:postRequest
+								  returningResponse:&response
+											  error:&error];
 			NSLog(@"Connection response: %@   error: %@", response, error);
 			[baseURL release];
 			[kind release];
@@ -161,8 +171,8 @@ static void writeTheoraPage(NSString *kind) {
 		});
 	}
 
-    // Erik - Changing second specifier to %ld to suppress warning
-	NSLog(@"Wrote theora %@ page of size %ld bytes.", kind, mTheora.og.header_len + mTheora.og.body_len);
+	NSLog(@"Wrote theora %@ page of size %ld bytes.", kind,
+		  mTheora.og.header_len + mTheora.og.body_len);
 }
 
 static void closeTheoraFile()
@@ -195,7 +205,8 @@ static void createTheoraFile()
 	mTheora.ti.fps_numerator = mFPS;
 	mTheora.ti.fps_denominator = 1;
 	
-	NSLog(@"Frame size is %dx%d, picture size is %dx%d.", mTheora.ti.frame_width, mTheora.ti.frame_height, mTheora.ti.pic_width, mTheora.ti.pic_height);
+	NSLog(@"Frame size is %dx%d, picture size is %dx%d.", mTheora.ti.frame_width,
+		  mTheora.ti.frame_height, mTheora.ti.pic_width, mTheora.ti.pic_height);
 	
 	/* Are these the right values? */
 	mTheora.ti.target_bitrate = kTheoraBitrate;
@@ -269,13 +280,6 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
     
 	NSAutoreleasePool *pool = [NSAutoreleasePool new];
 	
-    // Erik - These readers weren't getting a needed release ("removeOldestItemFromBlahQ" methods retain sneakily), thus retain count was skyrocketing.
-    // This code appears to have been taken from 
-    // http://developer.apple.com/library/mac/#samplecode/OpenGLScreenCapture/Introduction/Intro.html#//apple_ref/doc/uid/DTS10004445-Intro-DontLinkElementID_2, 
-    // which means the sample code is itself fucked.
-    //
-    // detachNewThreadSelector adds a retain to both toTarget and withObject when it starts the thread, and releases after, by which time the readers are retained
-    // by their new queue.
 	FrameReader *freeReader = [mFrameQueueController removeOldestItemFromFreeQ];
 	[freeReader setBufferReadTime:time];
 	[freeReader readScreenAsyncOnSeparateThread];
@@ -284,7 +288,9 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 	FrameReader *filledReader = [mFrameQueueController removeOldestItemFromFilledQ];
 	if (filledReader) {
 		mFramesLeft++;
-		[NSThread detachNewThreadSelector:@selector(processFrameSynchronized:) toTarget:mSelf withObject:filledReader];
+		[NSThread detachNewThreadSelector:@selector(processFrameSynchronized:)
+								 toTarget:mSelf
+							   withObject:filledReader];
         [filledReader release];
 	}
     
@@ -303,7 +309,6 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 	@synchronized([ScreenCapTheoraAppDelegate class]) {
 		if (mShouldStop) {
 			mFramesLeft--;
-            // Erik - Uncommenting this cuz otherwise the pool is lost in the void of eternity.
 			[pool release];
 			return;
 		}
@@ -328,10 +333,13 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 		
 		void *cgDest = calloc(target_bytes_per_row * mFrameHeight, 1);
 		CGColorSpaceRef myColorSpace = CGColorSpaceCreateWithName(kCGColorSpaceGenericRGB);
-		CGContextRef myContext = CGBitmapContextCreate(cgDest, mFrameWidth, mFrameHeight, 8, target_bytes_per_row, myColorSpace, kCGImageAlphaPremultipliedLast);
+		CGContextRef myContext = CGBitmapContextCreate(cgDest, mFrameWidth, mFrameHeight, 8, target_bytes_per_row,
+													   myColorSpace, kCGImageAlphaPremultipliedLast);
 
 		CGDataProviderRef pixelBufferData = CGDataProviderCreateWithData(NULL, src, bytes_per_row * height, NULL);
-		CGImageRef cgImage = CGImageCreate(width, height, 8, 32, bytes_per_row, myColorSpace, kCGImageAlphaPremultipliedLast, pixelBufferData, NULL, YES, kCGRenderingIntentDefault);
+		CGImageRef cgImage = CGImageCreate(width, height, 8, 32, bytes_per_row, myColorSpace,
+										   kCGImageAlphaPremultipliedLast, pixelBufferData, NULL, YES,
+										   kCGRenderingIntentDefault);
 
 		CGRect dest;
 		dest.origin.x = 0;
@@ -356,10 +364,11 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 			myValues[1] = kCFBooleanTrue;
 			myKeys[2] = kCGImageDestinationLossyCompressionQuality;
 			myValues[2] = CFNumberCreate(NULL, kCFNumberFloatType, &compression);
-			myOptions = CFDictionaryCreate( NULL, (const void **)myKeys, (const void **)myValues, 3,
+			myOptions = CFDictionaryCreate(NULL, (const void **)myKeys, (const void **)myValues, 3,
 										   &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
 			
-			CGImageDestinationRef imageFile = CGImageDestinationCreateWithURL((CFURLRef) imageURL, kUTTypeJPEG, 1, nil);
+			CGImageDestinationRef imageFile = CGImageDestinationCreateWithURL((CFURLRef) imageURL,
+																			  kUTTypeJPEG, 1, nil);
 			CGImageDestinationAddImage(imageFile, myContextImage, myOptions);
 			CGImageDestinationFinalize(imageFile);
 			CFRelease(imageFile);
@@ -387,7 +396,8 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 			BGR32toI420(mFrameWidth, mFrameHeight, cgDest, v_frame);
 
 			if (kEnableWebM) {
-				[[mWebM.pipe fileHandleForWriting] writeData:[NSData dataWithBytes:v_frame length:v_frame_size]];
+				[[mWebM.pipe fileHandleForWriting] writeData:[NSData dataWithBytes:v_frame
+																			length:v_frame_size]];
 			}
 
 			if (kEnableTheora) {
@@ -454,9 +464,6 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 		}
 
 		free(cgDest);
-
-        // Erik - Looks like FrameReader uses the same PixelBuffer repeatedly and owns that memory, so releasing it kills it out from under it
-		// TODO: Why does CVPixelBufferRelease(pixelBuffer) crash us?
 
 		NSLog(@"Encoded 1 frame @ %dx%d (%d left in queue).", mFrameWidth, mFrameHeight, mFramesLeft-1);
 		
@@ -562,7 +569,6 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 		[pool release];
 	});
 	
-    // Defined this earlier to use displayID instead of kCGDirectMainDisplay and CGMainDisplayID() in several instances below.
     CGDirectDisplayID displayID = CGMainDisplayID();
     
 	NSOpenGLPixelFormatAttribute attributes[] = {
@@ -575,7 +581,8 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 	mGLPixelFormat = [[NSOpenGLPixelFormat alloc] initWithAttributes:attributes];
 	NSAssert(mGLPixelFormat != nil, @"NSOpenGLPixelFormat creation failed.");
 	
-	mGLContext = [[NSOpenGLContext alloc] initWithFormat:mGLPixelFormat shareContext:nil];
+	mGLContext = [[NSOpenGLContext alloc] initWithFormat:mGLPixelFormat
+											shareContext:nil];
 	NSAssert(mGLContext != nil, @"NSOpenGLContext creation failed.");
 	[mGLContext makeCurrentContext];
 	[mGLContext setFullScreen];
@@ -587,19 +594,21 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 	unsigned int height = mDisplayRect.size.height;
 	
 	mFrameQueueController = [[QueueController alloc] initWithReaderObjects:kNumReaderObjects
-																  aContext:mGLContext pixelsWide:width pixelsHigh:height
-																   xOffset:0 yOffset:0];
+																  aContext:mGLContext
+																pixelsWide:width
+																pixelsHigh:height
+																   xOffset:0
+																   yOffset:0];
 	
 	mScaledWidth = width * kImageScaling;
 	mScaledHeight = height * kImageScaling;
 
-	NSLog(@"Native screen size is %dx%d, scaled size is %dx%d.", width, height, mScaledWidth, mScaledHeight);
+	NSLog(@"Native screen size is %dx%d, scaled size is %dx%d.", width, height,
+		  mScaledWidth, mScaledHeight);
 
 	unsigned int horizPadding = 0;
 	unsigned int vertPadding = 0;
 	
-    // Erik - It doesn't look like WebM requires width/height to be multiples of 16 (from my brief glance) so I am assuming the
-    // kEnableWebM was a typo here since you're printing out the Theora version.
 	if (kEnableTheora) {
 		NSLog(@"Using %s.", th_version_string());
 		// Crop up so we're a multiple of 16, which is an easy way of satisfying Theora encoding requirements.
@@ -616,9 +625,6 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 	CVDisplayLinkCreateWithCGDisplay(displayID, &mDisplayLink);
 	NSAssert(mDisplayLink != NULL, @"Couldn't create display link for the main display.");
 	
-    // Erik - Commented this out as it is redundant I believe.
-    // CVDisplayLinkSetCurrentCGDisplay(mDisplayLink, kCGDirectMainDisplay);
-    
 	CVDisplayLinkSetOutputCallback(mDisplayLink, displayLinkCallback, NULL);
 	CVDisplayLinkStart(mDisplayLink);
 	
@@ -637,7 +643,8 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 		[args addObject:@"-o"];
 		[args addObject:@"/Users/atul/screencap.webm"];
 		[args addObject:@"-"];
-		[args addObjectsFromArray:[NSArray arrayWithObjects:@"--rt", @"--cpu-used=4", @"--end-usage=1", @"--target-bitrate=100", nil]];
+		[args addObjectsFromArray:[NSArray arrayWithObjects:@"--rt", @"--cpu-used=4",
+								   @"--end-usage=1", @"--target-bitrate=100", nil]];
 		[mWebM.encoder setLaunchPath:@"/Users/atul/Documents/read-only/libvpx/vpxenc"];
 		[mWebM.encoder setArguments:args];
 		[mWebM.encoder setStandardInput:mWebM.pipe];
@@ -653,12 +660,14 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 
 - (IBAction)changeBroadcastURL:(id)sender
 {
-	[[NSUserDefaults standardUserDefaults] setObject:[urlField stringValue] forKey:@"BroadcastURL"];
+	[[NSUserDefaults standardUserDefaults] setObject:[urlField stringValue]
+											  forKey:@"BroadcastURL"];
 }
 
 - (IBAction)changeFPS:(id)sender
 {
-	[[NSUserDefaults standardUserDefaults] setObject:[NSNumber numberWithInt:[fpsSlider intValue]] forKey:@"FPS"];
+	[[NSUserDefaults standardUserDefaults] setObject:[NSNumber numberWithInt:[fpsSlider intValue]]
+											  forKey:@"FPS"];
 }
 
 @end
