@@ -13,6 +13,7 @@
 	IBOutlet NSButton *startRecording;
 	IBOutlet NSButton *stopRecording;
 	IBOutlet NSTextField *urlField;
+	IBOutlet NSSlider *fpsSlider;
 }
 
 @property (assign) IBOutlet NSWindow *window;
@@ -20,4 +21,6 @@
 - (void)processFrameSynchronized:(id)param;
 - (IBAction)startRecording:(id)sender;
 - (IBAction)stopRecording:(id)sender;
+- (IBAction)changeFPS:(id)sender;
+- (IBAction)changeBroadcastURL:(id)sender;
 @end

@@ -38,9 +38,6 @@
 // The number of screen readers in existence at one time.
 #define kNumReaderObjects 20
 
-// Current frames per second of each movie.
-#define kFPS 8
-
 // Amount to scale the user's screen.
 #define kImageScaling 0.33
 
@@ -53,9 +50,6 @@
 
 // Number of seconds each movie lasts. When this period is over, a new movie is created. Set to -1 if you only want one movie that is arbitrarily long.
 #define kSecondsPerMovie 2
-
-// Number of frames each movie lasts.
-#define kFramesPerMovie (kSecondsPerMovie * kFPS)
 
 typedef struct {
 	// File descriptor to use for writing to a Theora file, if kEnableTheoraFile is set.
@@ -94,6 +88,9 @@ static NSOpenGLContext *mGLContext;
 static NSOpenGLPixelFormat *mGLPixelFormat;
 static CVDisplayLinkRef mDisplayLink;
 static QueueController *mFrameQueueController;
+
+// Current frames per second of each movie.
+static int mFPS;
 
 // The actual size of the user's screen.
 static CGRect mDisplayRect;
@@ -194,7 +191,7 @@ static void createTheoraFile()
 	mTheora.ti.pic_height = mScaledHeight;
 	mTheora.ti.pic_x = 0;
 	mTheora.ti.pic_y = 0;
-	mTheora.ti.fps_numerator = kFPS;
+	mTheora.ti.fps_numerator = mFPS;
 	mTheora.ti.fps_denominator = 1;
 	
 	NSLog(@"Frame size is %dx%d, picture size is %dx%d.", mTheora.ti.frame_width, mTheora.ti.frame_height, mTheora.ti.pic_width, mTheora.ti.pic_height);
@@ -421,8 +418,9 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 				mTheora.framesWritten++;
 
 				int isLastPacket = 0;
-				
-				if (mTheora.framesWritten == kFramesPerMovie)
+				int framesPerMovie = kSecondsPerMovie * mFPS;
+
+				if (mTheora.framesWritten == framesPerMovie)
 					isLastPacket = 1;
 				
 				if (!th_encode_packetout(mTheora.th, isLastPacket, &mTheora.op))
@@ -433,7 +431,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 					writeTheoraPage(@"page");
 				}
 
-				if (mTheora.framesWritten == kFramesPerMovie) {
+				if (mTheora.framesWritten == framesPerMovie) {
 					closeTheoraFile();
 					mTheora.framesWritten = 0;
 				}
@@ -462,14 +460,18 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 	mRequestQueue = dispatch_queue_create("com.toolness.requestQueue", NULL);
 	
 	NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
-	NSDictionary *appDefaults = [NSDictionary dictionaryWithObject:@"http://localhost:8080" forKey:@"BroadcastURL"];
+	NSDictionary *appDefaults = [NSDictionary dictionaryWithObjectsAndKeys:
+								 @"http://localhost:8080",@"BroadcastURL",
+								 [NSNumber numberWithInt:8],@"FPS",
+								 nil];
 	[defaults registerDefaults:appDefaults];
 
 	NSString *broadcastURL = [[NSUserDefaults standardUserDefaults] stringForKey:@"BroadcastURL"];
 	[urlField setStringValue:broadcastURL];
-
-	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(someTextChanged:) name:NSTextDidChangeNotification object:nil];
 	
+	NSInteger fps = [[NSUserDefaults standardUserDefaults] integerForKey:@"FPS"];
+	[fpsSlider setIntegerValue:fps];
+
 	NSLog(@"Initialized.");
 }
 
@@ -514,6 +516,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 	mIsRecording = NO;
 	[startRecording setEnabled:YES];
 	[urlField setEnabled:YES];
+	[fpsSlider setEnabled:YES];
 	[stopRecording setEnabled:NO];
 }
 
@@ -521,6 +524,10 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 {
 	mShouldStop = NO;
 	
+	mFPS = [[NSUserDefaults standardUserDefaults] integerForKey:@"FPS"];
+	
+	NSLog(@"Preparing to record at %d frames per second.", mFPS);
+
 	// Insert code here to initialize your application 
 	NSOpenGLPixelFormatAttribute attributes[] = {
 		NSOpenGLPFAFullScreen,
@@ -566,7 +573,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 	mFrameHeight = mScaledHeight + vertPadding;
 
 	mLastTime = [NSDate timeIntervalSinceReferenceDate];
-	mFPSInterval = 1.0 / kFPS;
+	mFPSInterval = 1.0 / mFPS;
 	
 	CVDisplayLinkCreateWithCGDisplay(kCGDirectMainDisplay, &mDisplayLink);
 	NSAssert(mDisplayLink != NULL, @"Couldn't create display link for the main display.");
@@ -581,7 +588,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 		
 		[args addObject:[NSString stringWithFormat:@"--width=%d", mScaledWidth]];
 		[args addObject:[NSString stringWithFormat:@"--height=%d", mScaledHeight]];
-		[args addObject:[NSString stringWithFormat:@"--fps=%d/1", kFPS]];
+		[args addObject:[NSString stringWithFormat:@"--fps=%d/1", mFPS]];
 		[args addObject:@"-p"];
 		[args addObject:@"1"];
 		[args addObject:@"-t"];
@@ -599,16 +606,18 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 	mIsRecording = YES;
 	[startRecording setEnabled:NO];
 	[urlField setEnabled:NO];
+	[fpsSlider setEnabled:NO];
 	[stopRecording setEnabled:YES];
 }
 
-- (void)someTextChanged:(NSNotification *)notification
+- (IBAction)changeBroadcastURL:(id)sender
 {
-	NSText *text = (NSText *)[notification object];
-	id field = [text delegate];
-	if (field == urlField) {
-		[[NSUserDefaults standardUserDefaults] setObject:[text string] forKey:@"BroadcastURL"];
-	}
+	[[NSUserDefaults standardUserDefaults] setObject:[urlField stringValue] forKey:@"BroadcastURL"];
+}
+
+- (IBAction)changeFPS:(id)sender
+{
+	[[NSUserDefaults standardUserDefaults] setObject:[NSNumber numberWithInt:[fpsSlider intValue]] forKey:@"FPS"];
 }
 
 @end
