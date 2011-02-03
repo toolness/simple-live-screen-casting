@@ -26,7 +26,7 @@ Once the basics are working, further improvements might include:
 
 * Refactor concurrency model to use operation queues (`NSOperationQueue`, `NSOperation`, etc); see Apple's [Concurrency Programming Guide] for more on this.
 * Add controls to allow user to specify options at run-time that are currently hard-coded at build time. For instance, the URL of the server to connect to, the movie's bitrate, etc.
-* Figure out how efficiently the video content is being streamed from the broadcaster to the server, and potentially improve it. Right now we're creating separate `NSURLConnection` objects for every page of the Ogg stream, which I did solely for the sake of expediency (I just wanted to get the full solution working end-to-end, even if it was slow). I'm not sure if separate `NSURLConnection` objects actually pool connections and use HTTP keep-alive; if they don't, then this mechanism is probably pathetically inefficient.
+* Figure out how efficiently the video content is being streamed from the broadcaster to the server, and potentially improve it. The separate `NSURLConnection` objects we create are actually pooled using HTTP keep-alive by the underlying OS, but the size of HTTP headers compared to payload data might still make them really inefficient.
 * Add support for the streaming server to serve many different channels of video, rather than just one.
 
 [Rainbow]: https://github.com/mozilla/rainbow
