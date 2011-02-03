@@ -508,12 +508,6 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 								 nil];
 	[defaults registerDefaults:appDefaults];
 
-	NSString *broadcastURL = [[NSUserDefaults standardUserDefaults] stringForKey:@"BroadcastURL"];
-	[urlField setStringValue:broadcastURL];
-	
-	NSInteger fps = [[NSUserDefaults standardUserDefaults] integerForKey:@"FPS"];
-	[fpsSlider setIntegerValue:fps];
-
 	NSLog(@"Initialized.");
 }
 
@@ -692,18 +686,6 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 	[urlField setEnabled:NO];
 	[fpsSlider setEnabled:NO];
 	[stopRecording setEnabled:YES];
-}
-
-- (IBAction)changeBroadcastURL:(id)sender
-{
-	[[NSUserDefaults standardUserDefaults] setObject:[urlField stringValue]
-											  forKey:@"BroadcastURL"];
-}
-
-- (IBAction)changeFPS:(id)sender
-{
-	[[NSUserDefaults standardUserDefaults] setObject:[NSNumber numberWithInt:[fpsSlider intValue]]
-											  forKey:@"FPS"];
 }
 
 - (void)windowWillClose:(NSNotification *)notification

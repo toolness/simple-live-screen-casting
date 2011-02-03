@@ -21,6 +21,4 @@
 - (void)processFrameSynchronized:(id)param;
 - (IBAction)startRecording:(id)sender;
 - (IBAction)stopRecording:(id)sender;
-- (IBAction)changeFPS:(id)sender;
-- (IBAction)changeBroadcastURL:(id)sender;
 @end
