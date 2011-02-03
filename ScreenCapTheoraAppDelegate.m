@@ -542,6 +542,26 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 	
 	NSLog(@"Preparing to record at %d frames per second.", mFPS);
 
+	NSString *baseURL = [[NSUserDefaults standardUserDefaults] stringForKey:@"BroadcastURL"];
+	[baseURL retain];
+
+	dispatch_async(mRequestQueue, ^{
+		NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+		NSURL *postURL = [NSURL URLWithString:[baseURL stringByAppendingString:@"/clear"]];
+		NSMutableURLRequest *postRequest = [NSMutableURLRequest requestWithURL:postURL
+																   cachePolicy:NSURLRequestReloadIgnoringLocalCacheData
+															   timeoutInterval:2.0];
+		[postRequest setHTTPMethod:@"POST"];
+		NSURLResponse *response = NULL;
+		NSError *error = NULL;
+		[NSURLConnection sendSynchronousRequest:postRequest
+							  returningResponse:&response
+										  error:&error];
+		NSLog(@"Clear connection response: %@   error: %@", response, error);
+		[baseURL release];
+		[pool release];
+	});
+	
     // Defined this earlier to use displayID instead of kCGDirectMainDisplay and CGMainDisplayID() in several instances below.
     CGDirectDisplayID displayID = CGMainDisplayID();
     
