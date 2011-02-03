@@ -161,7 +161,8 @@ static void writeTheoraPage(NSString *kind) {
 		});
 	}
 
-	NSLog(@"Wrote theora %@ page of size %d bytes.", kind, mTheora.og.header_len + mTheora.og.body_len);
+    // Erik - Changing second specifier to %ld to suppress warning
+	NSLog(@"Wrote theora %@ page of size %ld bytes.", kind, mTheora.og.header_len + mTheora.og.body_len);
 }
 
 static void closeTheoraFile()
@@ -218,7 +219,7 @@ static void createTheoraFile()
 	mTheora.movieID++;
 	if (kEnableTheoraFile) {
 		// TODO: Don't hardcode this filename.
-		NSString *filename = [NSString stringWithFormat:@"/Users/atul/screencap-%d.ogv", mTheora.movieID];
+		NSString *filename = [NSString stringWithFormat:@"/Users/christensenep/screencap-%d.ogv", mTheora.movieID];
 		mTheora.fd = open([filename UTF8String], O_WRONLY | O_CREAT | O_TRUNC | O_SYNC);		
 		if (mTheora.fd < 0)
 			NSLog(@"open() failed.");
@@ -265,19 +266,28 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 		return kCVReturnSuccess;
 
 	mLastTime = time;
-
+    
 	NSAutoreleasePool *pool = [NSAutoreleasePool new];
 	
+    // Erik - These readers weren't getting a needed release ("removeOldestItemFromBlahQ" methods retain sneakily), thus retain count was skyrocketing.
+    // This code appears to have been taken from 
+    // http://developer.apple.com/library/mac/#samplecode/OpenGLScreenCapture/Introduction/Intro.html#//apple_ref/doc/uid/DTS10004445-Intro-DontLinkElementID_2, 
+    // which means the sample code is itself fucked.
+    //
+    // detachNewThreadSelector adds a retain to both toTarget and withObject when it starts the thread, and releases after, by which time the readers are retained
+    // by their new queue.
 	FrameReader *freeReader = [mFrameQueueController removeOldestItemFromFreeQ];
 	[freeReader setBufferReadTime:time];
 	[freeReader readScreenAsyncOnSeparateThread];
-
+    [freeReader release];
+    
 	FrameReader *filledReader = [mFrameQueueController removeOldestItemFromFilledQ];
 	if (filledReader) {
 		mFramesLeft++;
 		[NSThread detachNewThreadSelector:@selector(processFrameSynchronized:) toTarget:mSelf withObject:filledReader];
+        [filledReader release];
 	}
-
+    
 	[pool release];
 	return kCVReturnSuccess;
 }
@@ -287,16 +297,18 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 @synthesize window;
 
 - (void)processFrameSynchronized:(id)param
-{
-	NSAutoreleasePool *pool = [NSAutoreleasePool new];
-
+{   
+    NSAutoreleasePool *pool = [NSAutoreleasePool new];
+    
 	@synchronized([ScreenCapTheoraAppDelegate class]) {
 		if (mShouldStop) {
 			mFramesLeft--;
+            // Erik - Uncommenting this cuz otherwise the pool is lost in the void of eternity.
+			[pool release];
 			return;
-			//[pool release];
 		}
 
+        
 		FrameReader *reader = (FrameReader *)param;
 		
 		CVPixelBufferRef pixelBuffer = [reader readScreenAsyncFinish];
@@ -311,7 +323,8 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 		size_t target_bytes_per_row = mFrameWidth * 4;
 
 		if (bytes_per_row != width * 4)
-			NSLog(@"Expected bytes per row to be %d but got %d.", width * 4, bytes_per_row);
+            // Changing to %lu to squelch a warning.
+			NSLog(@"Expected bytes per row to be %d but got %lu.", width * 4, bytes_per_row);
 		
 		void *cgDest = calloc(target_bytes_per_row * mFrameHeight, 1);
 		CGColorSpaceRef myColorSpace = CGColorSpaceCreateWithName(kCGColorSpaceGenericRGB);
@@ -442,6 +455,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 
 		free(cgDest);
 
+        // Erik - Looks like FrameReader uses the same PixelBuffer repeatedly and owns that memory, so releasing it kills it out from under it
 		// TODO: Why does CVPixelBufferRelease(pixelBuffer) crash us?
 
 		NSLog(@"Encoded 1 frame @ %dx%d (%d left in queue).", mFrameWidth, mFrameHeight, mFramesLeft-1);
@@ -528,27 +542,13 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 	
 	NSLog(@"Preparing to record at %d frames per second.", mFPS);
 
-	NSString *baseURL = [[NSUserDefaults standardUserDefaults] stringForKey:@"BroadcastURL"];
-	[baseURL retain];
-
-	dispatch_async(mRequestQueue, ^{
-		NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-		NSURL *postURL = [NSURL URLWithString:[baseURL stringByAppendingString:@"/clear"]];
-		NSMutableURLRequest *postRequest = [NSMutableURLRequest requestWithURL:postURL cachePolicy:NSURLRequestReloadIgnoringLocalCacheData timeoutInterval:2.0];
-		[postRequest setHTTPMethod:@"POST"];
-		NSURLResponse *response = NULL;
-		NSError *error = NULL;
-		[NSURLConnection sendSynchronousRequest:postRequest returningResponse:&response error:&error];
-		NSLog(@"Clear connection response: %@   error: %@", response, error);
-		[baseURL release];
-		[pool release];
-	});
-	
-	// Insert code here to initialize your application 
+    // Defined this earlier to use displayID instead of kCGDirectMainDisplay and CGMainDisplayID() in several instances below.
+    CGDirectDisplayID displayID = CGMainDisplayID();
+    
 	NSOpenGLPixelFormatAttribute attributes[] = {
 		NSOpenGLPFAFullScreen,
 		NSOpenGLPFAScreenMask,
-		CGDisplayIDToOpenGLDisplayMask(kCGDirectMainDisplay),
+		CGDisplayIDToOpenGLDisplayMask(displayID),
 		(NSOpenGLPixelFormatAttribute) 0
 	};
 	
@@ -560,7 +560,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 	[mGLContext makeCurrentContext];
 	[mGLContext setFullScreen];
 	
-	CGDirectDisplayID displayID = CGMainDisplayID();
+
 	mDisplayRect = CGDisplayBounds(displayID);
 	
 	unsigned int width = mDisplayRect.size.width;
@@ -578,7 +578,9 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 	unsigned int horizPadding = 0;
 	unsigned int vertPadding = 0;
 	
-	if (kEnableWebM || kEnableTheora) {
+    // Erik - It doesn't look like WebM requires width/height to be multiples of 16 (from my brief glance) so I am assuming the
+    // kEnableWebM was a typo here since you're printing out the Theora version.
+	if (kEnableTheora) {
 		NSLog(@"Using %s.", th_version_string());
 		// Crop up so we're a multiple of 16, which is an easy way of satisfying Theora encoding requirements.
 		horizPadding = ((mScaledWidth + 15) & ~0xF) - mScaledWidth;
@@ -591,9 +593,12 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 	mLastTime = [NSDate timeIntervalSinceReferenceDate];
 	mFPSInterval = 1.0 / mFPS;
 	
-	CVDisplayLinkCreateWithCGDisplay(kCGDirectMainDisplay, &mDisplayLink);
+	CVDisplayLinkCreateWithCGDisplay(displayID, &mDisplayLink);
 	NSAssert(mDisplayLink != NULL, @"Couldn't create display link for the main display.");
-	CVDisplayLinkSetCurrentCGDisplay(mDisplayLink, kCGDirectMainDisplay);
+	
+    // Erik - Commented this out as it is redundant I believe.
+    // CVDisplayLinkSetCurrentCGDisplay(mDisplayLink, kCGDirectMainDisplay);
+    
 	CVDisplayLinkSetOutputCallback(mDisplayLink, displayLinkCallback, NULL);
 	CVDisplayLinkStart(mDisplayLink);
 	
