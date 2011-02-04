@@ -39,9 +39,6 @@
 // The number of screen readers in existence at one time.
 #define kNumReaderObjects 20
 
-// Bitrate of the Theora stream.
-#define kTheoraBitrate 128000
-
 // How often to create keyframes in the Theora stream. For more information, see:
 // http://www.theora.org/doc/libtheora-1.0/structth__info.html#693ca4ab11fbc0c3f32594b4bb8766ed
 #define kTheoraKeyframeGranuleShift 6
@@ -236,8 +233,10 @@ static void createTheoraFile()
 	NSLog(@"Frame size is %dx%d, picture size is %dx%d.", mTheora.ti.frame_width,
 		  mTheora.ti.frame_height, mTheora.ti.pic_width, mTheora.ti.pic_height);
 	
+	double kbps = [[NSUserDefaults standardUserDefaults] doubleForKey:@"Bitrate"];
+
 	/* Are these the right values? */
-	mTheora.ti.target_bitrate = kTheoraBitrate;
+	mTheora.ti.target_bitrate = kbps * 1000;
 	mTheora.ti.colorspace = TH_CS_ITU_REC_470M;
 	mTheora.ti.pixel_fmt = TH_PF_420;
 	mTheora.ti.keyframe_granule_shift = kTheoraKeyframeGranuleShift;
@@ -524,6 +523,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 								 @"http://localhost:8080",@"BroadcastURL",
 								 [NSNumber numberWithInt:8],@"FPS",
 								 [NSNumber numberWithInt:33],@"ScaleFactor",
+								 [NSNumber numberWithInt:128],@"Bitrate",
 								 nil];
 	[defaults registerDefaults:appDefaults];
 
