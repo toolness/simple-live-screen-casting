@@ -255,8 +255,8 @@ static void createTheoraFile()
 
 	mTheora.movieID++;
 	if (kEnableTheoraFile) {
-		// TODO: Don't hardcode this filename.
-		NSString *filename = [NSString stringWithFormat:@"/Users/christensenep/screencap-%d.ogv", mTheora.movieID];
+		NSString *filename = [NSString stringWithFormat:@"%@/screencap-%d.ogv",
+							  NSHomeDirectory(), mTheora.movieID];
 		mTheora.fd = open([filename UTF8String], O_WRONLY | O_CREAT | O_TRUNC | O_SYNC);		
 		if (mTheora.fd < 0)
 			NSLog(@"open() failed.");
@@ -389,7 +389,9 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 
 		if (kEnableJPEG) {
 			CGImageRef myContextImage = CGBitmapContextCreateImage(myContext);
-			NSURL *imageURL = [NSURL URLWithString:@"file:///Users/atul/Desktop/screencap.jpg"];
+			NSString *filename = [NSString stringWithFormat:@"%@/screencap.jpg",
+								  NSHomeDirectory()];
+			NSURL *imageURL = [NSURL fileURLWithPath:filename];
 
 			float compression = 0.1;
 			int orientation = 1;
