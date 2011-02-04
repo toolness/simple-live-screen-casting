@@ -39,9 +39,6 @@
 // The number of screen readers in existence at one time.
 #define kNumReaderObjects 20
 
-// Amount to scale the user's screen.
-#define kImageScaling 0.33
-
 // Bitrate of the Theora stream.
 #define kTheoraBitrate 128000
 
@@ -526,6 +523,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 	NSDictionary *appDefaults = [NSDictionary dictionaryWithObjectsAndKeys:
 								 @"http://localhost:8080",@"BroadcastURL",
 								 [NSNumber numberWithInt:8],@"FPS",
+								 [NSNumber numberWithInt:33],@"ScaleFactor",
 								 nil];
 	[defaults registerDefaults:appDefaults];
 
@@ -652,8 +650,12 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 																   xOffset:0
 																   yOffset:0];
 	
-	mScaledWidth = width * kImageScaling;
-	mScaledHeight = height * kImageScaling;
+	double scaleFactor = [[NSUserDefaults standardUserDefaults] doubleForKey:@"ScaleFactor"];
+
+	scaleFactor = scaleFactor / 100.0;
+
+	mScaledWidth = width * scaleFactor;
+	mScaledHeight = height * scaleFactor;
 
 	NSLog(@"Native screen size is %dx%d, scaled size is %dx%d.", width, height,
 		  mScaledWidth, mScaledHeight);
