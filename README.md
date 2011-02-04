@@ -17,7 +17,6 @@ Other things to try:
 
 Once the basics are working, further improvements might include:
 
-* Making it possible to only stream a certain part of the user's screen.
 * Annotating the picture/video stream with other metadata, such as keys pressed, position of the mouse cursor, etc. This could allow the client-side to display this metadata however the viewer wants, rather than hard-coding it into the movie itself as [ScreenFlow] and other apps do.
 * Allowing viewers to annotate the movie live, pointing at parts of the picture and asking questions or making comments about them.
 * Porting the app to other platforms like Windows and Linux.
@@ -25,7 +24,6 @@ Once the basics are working, further improvements might include:
 # TODOs
 
 * Refactor concurrency model to use operation queues (`NSOperationQueue`, `NSOperation`, etc); see Apple's [Concurrency Programming Guide] for more on this.
-* Add more controls to allow user to specify options at run-time that are currently hard-coded at build time.
 * Figure out how efficiently the video content is being streamed from the broadcaster to the server, and potentially improve it. The separate `NSURLConnection` objects we create are actually pooled using HTTP keep-alive by the underlying OS, but the size of HTTP headers compared to payload data might still make them really inefficient.
 * Add support for the streaming server to serve many different channels of video, rather than just one.
 
