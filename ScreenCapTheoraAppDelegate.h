@@ -10,6 +10,7 @@
 
 @interface ScreenCapTheoraAppDelegate : NSObject <NSApplicationDelegate, NSWindowDelegate> {
     NSWindow *window;
+	IBOutlet NSPanel *cropArea;
 }
 
 @property (assign) IBOutlet NSWindow *window;
@@ -21,4 +22,5 @@
 - (void)processFrameSynchronized:(id)param;
 - (IBAction)startRecording:(id)sender;
 - (IBAction)stopRecording:(id)sender;
+- (IBAction)toggleCropping:(id)sender;
 @end

@@ -512,7 +512,11 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification {
 	mSelf = self;
-
+	
+	[cropArea setFloatingPanel:YES];
+	[cropArea setBecomesKeyOnlyIfNeeded:YES];
+	[cropArea setBackgroundColor:[NSColor colorWithCalibratedWhite:0.0 alpha:0.1]];
+	
 	[self setIsRecording:NO];
 	[self setFramesLeft:0];
 
@@ -526,8 +530,12 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 								 [NSNumber numberWithInt:8],@"FPS",
 								 [NSNumber numberWithInt:33],@"ScaleFactor",
 								 [NSNumber numberWithInt:128],@"Bitrate",
+								 [NSNumber numberWithBool:NO],@"EnableCropping",
 								 nil];
 	[defaults registerDefaults:appDefaults];
+
+	if ([[NSUserDefaults standardUserDefaults] boolForKey:@"EnableCropping"])
+		[cropArea orderFront:nil];
 
 	NSLog(@"Initialized.");
 }
@@ -580,6 +588,9 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 	[mGLPixelFormat release];
 	mGLPixelFormat = nil;
 	
+	if ([[NSUserDefaults standardUserDefaults] boolForKey:@"EnableCropping"])
+		[cropArea orderFront:nil];
+
 	[self setIsRecording:NO];
 }
 
@@ -588,8 +599,12 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 	mShouldStop = NO;
 
 	[self setNetworkErrors:0];
-	
-	mFPS = [[NSUserDefaults standardUserDefaults] integerForKey:@"FPS"];
+
+	NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+	mFPS = [defaults integerForKey:@"FPS"];
+
+	if ([defaults boolForKey:@"EnableCropping"])
+		[cropArea orderOut:nil];
 	
 	NSLog(@"Preparing to record at %d frames per second.", mFPS);
 
@@ -714,6 +729,16 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 {
 	if ([notification object] == window)
 		[[NSApplication sharedApplication] terminate:nil];
+}
+
+- (IBAction)toggleCropping:(id)sender
+{
+	NSButton *checkbox = (NSButton *)sender;
+	if ([checkbox state] == NSOnState) {
+		[cropArea orderFront:nil];
+	} else {
+		[cropArea orderOut:nil];
+	}
 }
 
 @end
