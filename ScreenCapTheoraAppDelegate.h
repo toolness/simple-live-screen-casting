@@ -10,13 +10,11 @@
 
 @interface ScreenCapTheoraAppDelegate : NSObject <NSApplicationDelegate, NSWindowDelegate> {
     NSWindow *window;
-	IBOutlet NSButton *startRecording;
-	IBOutlet NSButton *stopRecording;
-	IBOutlet NSTextField *urlField;
-	IBOutlet NSSlider *fpsSlider;
 }
 
 @property (assign) IBOutlet NSWindow *window;
+@property (assign) NSInteger framesLeft;
+@property (assign) BOOL isRecording;
 
 - (void)processFrameSynchronized:(id)param;
 - (IBAction)startRecording:(id)sender;

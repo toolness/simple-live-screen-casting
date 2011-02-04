@@ -78,9 +78,6 @@ typedef struct {
 	NSPipe *pipe;
 } WebMState;
 
-// Whether or not we're currently recording.
-static BOOL mIsRecording = NO;
-
 // A dispatch queue for sending Ogg stream pages to the node.js server.
 static dispatch_queue_t mRequestQueue;
 
@@ -128,11 +125,14 @@ volatile static int mBytesLeft = 0;
 BOOL mShouldStop;
 
 static void changeBytesLeftBy(int amount) {
-	@synchronized(mRecordingMutex) { mBytesLeft += amount; }	
+	@synchronized(mRecordingMutex) { mBytesLeft += amount; }
 }
 
 static void changeFramesLeftBy(int amount) {
-	@synchronized(mRecordingMutex) { mFramesLeft += amount; }
+	@synchronized(mRecordingMutex) {
+		mFramesLeft += amount;
+		[mSelf setFramesLeft:mFramesLeft];
+	}
 }
 
 static void writeTheoraPage(NSString *kind) {
@@ -328,6 +328,8 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 @implementation ScreenCapTheoraAppDelegate
 
 @synthesize window;
+@synthesize framesLeft;
+@synthesize isRecording;
 
 - (void)processFrameSynchronized:(id)param
 {   
@@ -505,6 +507,9 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification {
 	mSelf = self;
 
+	[self setIsRecording:NO];
+	[self setFramesLeft:0];
+
 	mRequestQueue = dispatch_queue_create("com.toolness.requestQueue", NULL);
 	
 	mRecordingMutex = [[NSString alloc] initWithString:@"Recording Mutex"];
@@ -521,7 +526,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 
 - (void)applicationWillTerminate:(NSNotification *)notification
 {
-	if (mIsRecording)
+	if ([self isRecording])
 		[self stopRecording:self];
 
 	dispatch_release(mRequestQueue);
@@ -567,11 +572,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 	[mGLPixelFormat release];
 	mGLPixelFormat = nil;
 	
-	mIsRecording = NO;
-	[startRecording setEnabled:YES];
-	[urlField setEnabled:YES];
-	[fpsSlider setEnabled:YES];
-	[stopRecording setEnabled:NO];
+	[self setIsRecording:NO];
 }
 
 - (IBAction)startRecording:(id)sender
@@ -689,11 +690,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 		[mWebM.encoder launch];
 	}
 
-	mIsRecording = YES;
-	[startRecording setEnabled:NO];
-	[urlField setEnabled:NO];
-	[fpsSlider setEnabled:NO];
-	[stopRecording setEnabled:YES];
+	[self setIsRecording:YES];
 }
 
 - (void)windowWillClose:(NSNotification *)notification
