@@ -744,6 +744,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 		[args addObject:@"-"];
 		[args addObjectsFromArray:[NSArray arrayWithObjects:@"--rt", @"--cpu-used=4",
 								   @"--end-usage=1", @"--target-bitrate=100", nil]];
+		// TODO: Remove this hardcoded file path.
 		[mWebM.encoder setLaunchPath:@"/Users/atul/Documents/read-only/libvpx/vpxenc"];
 		[mWebM.encoder setArguments:args];
 		[mWebM.encoder setStandardInput:mWebM.pipe];
