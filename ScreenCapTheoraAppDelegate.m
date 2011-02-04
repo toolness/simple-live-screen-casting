@@ -153,16 +153,18 @@ static void writeTheoraPage(NSString *kind) {
 
 		changeBytesLeftBy(totalSize);
 		
-		dispatch_async(mRequestQueue, ^{
+		dispatch_async(mRequestQueue, ^{			
+			NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+
 			if (mShouldStop) {
 				free(buf);
 				[kind release];
 				[baseURL release];
 				changeBytesLeftBy(-totalSize);
+				[pool release];
 				return;
-			}
+			}			
 			
-			NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 			NSData *bufData = [NSData dataWithBytes:buf length:totalSize];
 			free(buf);
 			NSURL *postURL = [NSURL URLWithString:[baseURL stringByAppendingString:@"/update"]];
@@ -191,8 +193,8 @@ static void writeTheoraPage(NSString *kind) {
 			NSLog(@"Connection response: %@   error: %@   total bytes left: %d", response, error, mBytesLeft);
 			[baseURL release];
 			[kind release];
-			[pool release];
 			changeBytesLeftBy(-totalSize);
+			[pool release];
 		});
 	}
 
@@ -614,8 +616,8 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 
 			NSLog(@"Clear connection response: %@   error: %@", response, error);
 			[baseURL release];
-			[pool release];
 			changeBytesLeftBy(-1);
+			[pool release];
 		});
 	}
 	
