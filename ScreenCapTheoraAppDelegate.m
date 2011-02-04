@@ -360,9 +360,15 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 		size_t target_bytes_per_row = mFrameWidth * 4;
 
 		if (bytes_per_row != width * 4)
-            // Changing to %lu to squelch a warning.
+			// Not sure why, but this happens fairly often. It might be to
+			// align bytes_per_row to 16 bytes, which improves performance
+			// according to the "Creating a Bitmap Graphics Context" section
+			// of the Quartz 2D Programming Guide.
+			//
+			// Note that this also happens even when CVPixelBufferGetExtendedPixels()
+			// says there are no extra columns on the left or right.
 			NSLog(@"Expected bytes per row to be %d but got %lu.", width * 4, bytes_per_row);
-		
+
 		void *cgDest = calloc(target_bytes_per_row * mFrameHeight, 1);
 		CGColorSpaceRef myColorSpace = CGColorSpaceCreateWithName(kCGColorSpaceGenericRGB);
 		CGContextRef myContext = CGBitmapContextCreate(cgDest, mFrameWidth, mFrameHeight, 8, target_bytes_per_row,
