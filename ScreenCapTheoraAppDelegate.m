@@ -634,8 +634,16 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 		});
 	}
 	
-    CGDirectDisplayID displayID = CGMainDisplayID();
-    
+    CGDirectDisplayID displayID;
+	
+	if (enableCropping) {
+		NSDictionary *desc = [[cropArea screen] deviceDescription];
+		NSNumber *screenNumber = (NSNumber *)[desc valueForKey:@"NSScreenNumber"];
+		displayID = [screenNumber intValue];
+	} else {
+		displayID = CGMainDisplayID();
+    }
+	
 	NSOpenGLPixelFormatAttribute attributes[] = {
 		NSOpenGLPFAFullScreen,
 		NSOpenGLPFAScreenMask,
@@ -655,7 +663,12 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 	CGRect displayRect;
 
 	if (enableCropping) {
-		displayRect = [cropArea contentRectForFrameRect:[cropArea frame]];
+		NSRect contentRect = [cropArea contentRectForFrameRect:[cropArea frame]];
+		NSRect screenFrame = [[cropArea screen] frame];
+		displayRect.origin.y = contentRect.origin.y - screenFrame.origin.y;
+		displayRect.origin.x = contentRect.origin.x - screenFrame.origin.x;
+		displayRect.size.width = contentRect.size.width;
+		displayRect.size.height = contentRect.size.height;
 	} else {
 		displayRect = CGDisplayBounds(displayID);
 	}
