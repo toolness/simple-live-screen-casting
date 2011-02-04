@@ -582,6 +582,8 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 - (IBAction)startRecording:(id)sender
 {
 	mShouldStop = NO;
+
+	[self setNetworkErrors:0];
 	
 	mFPS = [[NSUserDefaults standardUserDefaults] integerForKey:@"FPS"];
 	
