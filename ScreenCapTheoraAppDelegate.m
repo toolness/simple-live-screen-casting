@@ -672,7 +672,10 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 	} else {
 		displayRect = CGDisplayBounds(displayID);
 	}
-	
+
+	// TODO: Note that we're doing implicit type-casting here, since NSRect/CGRect
+	// bounds are floats and may be in user-space rather than device space. If the
+	// NSScreen's userSpaceScaleFactor isn't 1.0, this could mean trouble.
 	unsigned int width = displayRect.size.width;
 	unsigned int height = displayRect.size.height;
 	
