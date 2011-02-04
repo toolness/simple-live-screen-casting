@@ -125,7 +125,10 @@ volatile static int mBytesLeft = 0;
 BOOL mShouldStop;
 
 static void changeBytesLeftBy(int amount) {
-	@synchronized(mRecordingMutex) { mBytesLeft += amount; }
+	@synchronized(mRecordingMutex) {
+		mBytesLeft += amount;
+		[mSelf setBytesLeft:mBytesLeft];
+	}
 }
 
 static void changeFramesLeftBy(int amount) {
@@ -332,6 +335,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 
 @synthesize window;
 @synthesize framesLeft;
+@synthesize bytesLeft;
 @synthesize networkErrors;
 @synthesize isRecording;
 
