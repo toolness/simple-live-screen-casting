@@ -86,9 +86,6 @@ static NSString *mRecordingMutex;
 // Current frames per second of each movie.
 static int mFPS;
 
-// The actual size of the user's screen.
-static CGRect mDisplayRect;
-
 // Singleton instance of our app delegate.
 static ScreenCapTheoraAppDelegate *mSelf;
 
@@ -603,7 +600,8 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 	NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
 	mFPS = [defaults integerForKey:@"FPS"];
 
-	if ([defaults boolForKey:@"EnableCropping"])
+	BOOL enableCropping = [defaults boolForKey:@"EnableCropping"];
+	if (enableCropping)
 		[cropArea orderOut:nil];
 	
 	NSLog(@"Preparing to record at %d frames per second.", mFPS);
@@ -653,19 +651,24 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 	NSAssert(mGLContext != nil, @"NSOpenGLContext creation failed.");
 	[mGLContext makeCurrentContext];
 	[mGLContext setFullScreen];
-	
 
-	mDisplayRect = CGDisplayBounds(displayID);
+	CGRect displayRect;
+
+	if (enableCropping) {
+		displayRect = [cropArea contentRectForFrameRect:[cropArea frame]];
+	} else {
+		displayRect = CGDisplayBounds(displayID);
+	}
 	
-	unsigned int width = mDisplayRect.size.width;
-	unsigned int height = mDisplayRect.size.height;
+	unsigned int width = displayRect.size.width;
+	unsigned int height = displayRect.size.height;
 	
 	mFrameQueueController = [[QueueController alloc] initWithReaderObjects:kNumReaderObjects
 																  aContext:mGLContext
 																pixelsWide:width
 																pixelsHigh:height
-																   xOffset:0
-																   yOffset:0];
+																   xOffset:displayRect.origin.x
+																   yOffset:displayRect.origin.y];
 	
 	double scaleFactor = [[NSUserDefaults standardUserDefaults] doubleForKey:@"ScaleFactor"];
 
