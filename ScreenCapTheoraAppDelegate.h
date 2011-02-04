@@ -14,6 +14,7 @@
 
 @property (assign) IBOutlet NSWindow *window;
 @property (assign) NSInteger framesLeft;
+@property (assign) NSInteger networkErrors;
 @property (assign) BOOL isRecording;
 
 - (void)processFrameSynchronized:(id)param;

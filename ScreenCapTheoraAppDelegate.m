@@ -188,6 +188,9 @@ static void writeTheoraPage(NSString *kind) {
 			[NSURLConnection sendSynchronousRequest:postRequest
 								  returningResponse:&response
 											  error:&error];
+			if (error)
+				[mSelf setNetworkErrors:[mSelf networkErrors] + 1];
+			
 			NSLog(@"Connection response: %@   error: %@   total bytes left: %d", response, error, mBytesLeft);
 			[baseURL release];
 			[kind release];
@@ -329,6 +332,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 
 @synthesize window;
 @synthesize framesLeft;
+@synthesize networkErrors;
 @synthesize isRecording;
 
 - (void)processFrameSynchronized:(id)param
@@ -601,6 +605,9 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 			[NSURLConnection sendSynchronousRequest:postRequest
 								  returningResponse:&response
 											  error:&error];
+			if (error)
+				[mSelf setNetworkErrors:[mSelf networkErrors] + 1];
+
 			NSLog(@"Clear connection response: %@   error: %@", response, error);
 			[baseURL release];
 			[pool release];
