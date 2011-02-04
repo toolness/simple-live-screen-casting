@@ -127,6 +127,14 @@ volatile static int mBytesLeft = 0;
 // their earliest possible convenience.
 BOOL mShouldStop;
 
+static void changeBytesLeftBy(int amount) {
+	@synchronized(mRecordingMutex) { mBytesLeft += amount; }	
+}
+
+static void changeFramesLeftBy(int amount) {
+	@synchronized(mRecordingMutex) { mFramesLeft += amount; }
+}
+
 static void writeTheoraPage(NSString *kind) {
 	if (kEnableTheoraFile) {
 		write(mTheora.fd, mTheora.og.header, mTheora.og.header_len);
@@ -146,14 +154,14 @@ static void writeTheoraPage(NSString *kind) {
 		int currentMovieID = mTheora.movieID;
 		[kind retain];
 
-		@synchronized(mRecordingMutex) { mBytesLeft += totalSize; }
+		changeBytesLeftBy(totalSize);
 		
 		dispatch_async(mRequestQueue, ^{
 			if (mShouldStop) {
 				free(buf);
 				[kind release];
 				[baseURL release];
-				@synchronized(mRecordingMutex) { mBytesLeft -= totalSize; }
+				changeBytesLeftBy(-totalSize);
 				return;
 			}
 			
@@ -184,7 +192,7 @@ static void writeTheoraPage(NSString *kind) {
 			[baseURL release];
 			[kind release];
 			[pool release];
-			@synchronized(mRecordingMutex) { mBytesLeft -= totalSize; }
+			changeBytesLeftBy(-totalSize);
 		});
 	}
 
@@ -299,7 +307,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 	
 	FrameReader *freeReader = [mFrameQueueController removeOldestItemFromFreeQ];
 	if (freeReader && !mShouldStop) {
-		@synchronized(mRecordingMutex) { mFramesLeft++; }
+		changeFramesLeftBy(1);
 		[freeReader setBufferReadTime:time];
 		[freeReader readScreenAsyncOnSeparateThread];
 		[freeReader release];
@@ -335,7 +343,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 		if (mShouldStop) {
 			[mFrameQueueController addItemToFreeQ:reader];
 			[pool release];
-			@synchronized(mRecordingMutex) { mFramesLeft--; }
+			changeFramesLeftBy(-1);
 			return;
 		}
 		
@@ -489,7 +497,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 		[mFrameQueueController addItemToFreeQ:reader];			
 	}
 
-	@synchronized(mRecordingMutex) { mFramesLeft--; }
+	changeFramesLeftBy(-1);
 
 	[pool release];
 }
@@ -578,7 +586,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 		NSString *baseURL = [[NSUserDefaults standardUserDefaults] stringForKey:@"BroadcastURL"];
 		[baseURL retain];
 
-		@synchronized(mRecordingMutex) { mBytesLeft += 1; }
+		changeBytesLeftBy(1);
 
 		dispatch_async(mRequestQueue, ^{
 			NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
@@ -595,7 +603,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 			NSLog(@"Clear connection response: %@   error: %@", response, error);
 			[baseURL release];
 			[pool release];
-			@synchronized(mRecordingMutex) { mBytesLeft -= 1; }
+			changeBytesLeftBy(-1);
 		});
 	}
 	
