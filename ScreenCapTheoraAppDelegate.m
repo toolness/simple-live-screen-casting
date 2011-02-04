@@ -739,7 +739,8 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 		[args addObject:@"-t"];
 		[args addObject:@"4"];
 		[args addObject:@"-o"];
-		[args addObject:@"/Users/atul/screencap.webm"];
+		[args addObject:[NSString stringWithFormat:@"%@/screencap.webm",
+						 NSHomeDirectory()]];
 		[args addObject:@"-"];
 		[args addObjectsFromArray:[NSArray arrayWithObjects:@"--rt", @"--cpu-used=4",
 								   @"--end-usage=1", @"--target-bitrate=100", nil]];
