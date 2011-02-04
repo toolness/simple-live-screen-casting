@@ -210,7 +210,8 @@ static void closeTheoraFile()
 	if (kEnableTheoraFile)
 		close(mTheora.fd);
 	
-	mTheora.th = NULL;	
+	mTheora.th = NULL;
+	mTheora.framesWritten = 0;
 }
 
 static void createTheoraFile()
@@ -241,6 +242,10 @@ static void createTheoraFile()
 	mTheora.ti.keyframe_granule_shift = kTheoraKeyframeGranuleShift;
 	
 	mTheora.th = th_encode_alloc(&mTheora.ti);
+	if (mTheora.th == NULL) {
+		NSLog(@"th_encode_alloc() failed.");
+	}
+	
 	th_info_clear(&mTheora.ti);
 	
 	th_comment_init(&mTheora.tc);
@@ -496,7 +501,6 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 
 				if (mTheora.framesWritten == framesPerMovie) {
 					closeTheoraFile();
-					mTheora.framesWritten = 0;
 				}
 			}
 
