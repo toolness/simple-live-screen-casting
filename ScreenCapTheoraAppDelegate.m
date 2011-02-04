@@ -348,8 +348,8 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 
 		if (mShouldStop) {
 			[mFrameQueueController addItemToFreeQ:reader];
-			[pool release];
 			changeFramesLeftBy(-1);
+			[pool release];
 			return;
 		}
 		
