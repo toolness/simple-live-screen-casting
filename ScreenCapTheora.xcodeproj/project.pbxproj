@@ -37,7 +37,7 @@
 		29B97324FDCFA39411CA2CEA /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = /System/Library/Frameworks/AppKit.framework; sourceTree = "<absolute>"; };
 		29B97325FDCFA39411CA2CEA /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = /System/Library/Frameworks/Foundation.framework; sourceTree = "<absolute>"; };
 		8D1107310486CEB800E47090 /* ScreenCapTheora-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = "ScreenCapTheora-Info.plist"; sourceTree = "<group>"; };
-		8D1107320486CEB800E47090 /* ScreenCapTheora.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ScreenCapTheora.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		8D1107320486CEB800E47090 /* Echoance.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Echoance.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B75F8C7B12FD034D000DA55B /* DrumbeatLogo.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = DrumbeatLogo.icns; sourceTree = "<group>"; };
 		EA58FDD412EB93A50069C8A7 /* OpenGL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenGL.framework; path = System/Library/Frameworks/OpenGL.framework; sourceTree = SDKROOT; };
 		EA58FDDC12EB948C0069C8A7 /* Quartz.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Quartz.framework; path = System/Library/Frameworks/Quartz.framework; sourceTree = SDKROOT; };
@@ -105,7 +105,7 @@
 		19C28FACFE9D520D11CA2CBB /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				8D1107320486CEB800E47090 /* ScreenCapTheora.app */,
+				8D1107320486CEB800E47090 /* Echoance.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -197,7 +197,7 @@
 			name = Echoance;
 			productInstallPath = "$(HOME)/Applications";
 			productName = ScreenCapTheora;
-			productReference = 8D1107320486CEB800E47090 /* ScreenCapTheora.app */;
+			productReference = 8D1107320486CEB800E47090 /* Echoance.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -312,7 +312,7 @@
 					"$(inherited)",
 					"\"$(SRCROOT)/third-party-lib\"",
 				);
-				PRODUCT_NAME = ScreenCapTheora;
+				PRODUCT_NAME = Echoance;
 			};
 			name = Release;
 		};
