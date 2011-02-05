@@ -12,9 +12,9 @@
 		</object>
 		<object class="NSMutableArray" key="IBDocument.EditedObjectIDs">
 			<bool key="EncodedWithXMLCoder">YES</bool>
-			<integer value="645"/>
 			<integer value="29"/>
 			<integer value="534"/>
+			<integer value="645"/>
 		</object>
 		<object class="NSArray" key="IBDocument.PluginDependencies">
 			<bool key="EncodedWithXMLCoder">YES</bool>
@@ -1320,7 +1320,7 @@
 			<object class="NSWindowTemplate" id="947010271">
 				<int key="NSWindowStyleMask">8215</int>
 				<int key="NSWindowBacking">2</int>
-				<string key="NSWindowRect">{{145, -17}, {173, 435}}</string>
+				<string key="NSWindowRect">{{38, 266}, {173, 435}}</string>
 				<int key="NSWTFlags">-1535639552</int>
 				<string key="NSWindowTitle">Echoance</string>
 				<string key="NSWindowClass">NSPanel</string>
@@ -1744,7 +1744,7 @@
 			<object class="NSWindowTemplate" id="688989564">
 				<int key="NSWindowStyleMask">8217</int>
 				<int key="NSWindowBacking">2</int>
-				<string key="NSWindowRect">{{145, 148}, {480, 270}}</string>
+				<string key="NSWindowRect">{{229, 421}, {480, 270}}</string>
 				<int key="NSWTFlags">-461893632</int>
 				<string key="NSWindowTitle">Crop Area</string>
 				<string key="NSWindowClass">NSPanel</string>
@@ -4644,9 +4644,9 @@
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
-					<string>{{326, 235}, {173, 435}}</string>
+					<string>{{38, 266}, {173, 435}}</string>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
-					<string>{{326, 235}, {173, 435}}</string>
+					<string>{{38, 266}, {173, 435}}</string>
 					<boolean value="YES"/>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
@@ -4759,9 +4759,9 @@
 						<bytes key="NSTransformStruct">P4AAAL+AAABCHAAAw1YAAA</bytes>
 					</object>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
-					<string>{{547, 301}, {480, 270}}</string>
+					<string>{{229, 421}, {480, 270}}</string>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
-					<string>{{547, 301}, {480, 270}}</string>
+					<string>{{229, 421}, {480, 270}}</string>
 					<boolean value="NO"/>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>

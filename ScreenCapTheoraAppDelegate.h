@@ -10,6 +10,10 @@
 
 @interface ScreenCapTheoraAppDelegate : NSObject <NSApplicationDelegate, NSWindowDelegate> {
     NSWindow *window;
+	NSInteger framesLeft;
+	NSInteger bytesLeft;
+	NSInteger networkErrors;
+	BOOL isRecording;
 	IBOutlet NSPanel *cropArea;
 }
 
