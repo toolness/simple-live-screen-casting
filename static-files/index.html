@@ -1,25 +1,64 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
 <meta name="author" content="Atul Varma">
-<title>index</title>
+<title>Streaming Desktop</title>
 <!-- Date: 2011-01-25 -->
-<p>html5 is cool.</p>
 <style>
+body {
+  font-family: Baskerville;
+  margin-top: 1em;
+  margin-bottom: 1em;
+  margin-left: 0px;
+  margin-right: 0px;
+  padding: 0px;
+}
+
+#text {
+  width: 20em;
+  float: left;
+  margin-left: 1em;
+  margin-right: 1em;
+}
+
+.status span {
+  font-style: italic;
+}
+
+a {
+  color: inherit;
+}
+
+a:hover {
+  background: #f0f0f0;
+}
+
 a.movie-id {
   display: block;
 }
+
+h1 {
+  margin-top: 0px;
+  margin-bottom: 0px;
+  font-weight: normal;
+}
+
+#dashboard {
+  border: 1px dotted gray;
+  font-size: 9pt;
+  padding: 0.5em;
+  color: gray;
+}
 </style>
+<script src="jquery.min.js"></script>
 <script src="socket.io/socket.io.js"></script> 
 <script> 
-function onSocketError(e) {
+function logError(e) {
   if (window.console) {
     console.error(e);
-  } else {
-    var error = document.createElement("div");
-    error.className = "error";
-    error.textContent = e.toString();
-    document.body.appendChild(error);
   }
+  var error = $('<div class="error"></div>');
+  error.text(e.toString());
+  $("#dashboard .errors").append(error);
 }
 
 function makeErrorTrapper(cb) {
@@ -27,7 +66,7 @@ function makeErrorTrapper(cb) {
     try {
       return cb(data);
     } catch (e) {
-      onSocketError(e);
+      logError(e);
     }
   }
 }
@@ -59,11 +98,16 @@ function startLoadingVideo(movieInfo) {
 
   function onVideoBuffered() {
     gCurrentlyLoadingVideo = null;
+    $(".status .loading").text('none');
     onNetworkIdle();
   }
 
   var isChrome = navigator.userAgent &&
                  navigator.userAgent.indexOf('Chrome') != -1;
+  
+  video.addEventListener('error', function() {
+    logError("Movie segment " + video.id + " failed to load.");
+  }, false);
   
   if ('buffered' in video && !isChrome)
     // video.buffered isn't available in Firefox 3.6, and
@@ -100,12 +144,15 @@ function startLoadingVideo(movieInfo) {
 
   video.style.display = "none";
   video.load();
+  $(".status .loading").text(video.id);
   gCurrentlyLoadingVideo = video;
 }
 
 function onVideoEnded(video) {
   if (gCurrentlyEndedVideo)
     throw new Error("Assertion failure, a video is already ended!");
+  $(".status .playing").text('none');
+  $(".nothing-played-yet").slideUp();
   gCurrentlyPlayingVideo = null;
   gCurrentlyEndedVideo = video;
   if (gReadyToPlayVideo) {
@@ -122,6 +169,7 @@ function onVideoReadyToPlay(video) {
     gReadyToPlayVideo = video;
   } else {
     video.style.display = "inline";
+    $(".status .playing").text(video.id);
     video.play();
     if (gCurrentlyEndedVideo) {
       gVideoContainer.removeChild(gCurrentlyEndedVideo);
@@ -138,21 +186,47 @@ function onNetworkIdle() {
   }
 }
 
-onload = function() {
+$(window).ready(function() {
   gVideoContainer = document.getElementById("video");
   var socket = new io.Socket(); 
   socket.connect();
-  socket.on('connect', function(){});
+  socket.on('connect', function(){
+    $(".status .connection").text("connected");
+  });
   socket.on('message', makeErrorTrapper(function(message) {
+    if (message == "clear") {
+      window.location.reload();
+      return;
+    }
     var items = message.split(' ');
     gLatestMovieInfo = {
       id: parseInt(items[0]),
       duration: parseInt(items[1])
     };
+    $(".status .latest").text(gLatestMovieInfo.id.toString());
     if (!gCurrentlyLoadingVideo)
       onNetworkIdle();
   }));
-  socket.on('disconnect', function(){});
-};
+  socket.on('disconnect', function(){
+    $(".status .connection").text("disconnected");
+  });
+});
 </script>
-<p id="video"></p>
+<div id="text">
+<h1>Streaming Desktop</h1>
+<div class="intro">
+  <div class="nothing-played-yet">
+    <p>If you've been sent to this page, it means that someone wants to show you what's on their screen. Please wait while the video feed is retrieved.</p>
+    <p>Note that this page has only been tested on <a href="http://www.mozilla.com/en-US/firefox/?from=getfirefox">Firefox 3.6</a>, <a href="http://www.mozilla.com/en-US/firefox/beta/">Firefox 4 beta</a>, and <a href="">Google Chrome</a>. It will <i>not</i> work on browsers that don't support the public domain <a href="http://en.wikipedia.org/wiki/Theora">Theora</a> video format.</p>
+  </div>
+  <p>This is experimental software, so you may need to reload this page if things seem amiss.</p>
+</div>
+<div id="dashboard">
+  <div class="status">The update socket is <span class="connection">disconnected</span>.</div>
+  <div class="status">The movie segment being played is <span class="playing">none</span>.</div>
+  <div class="status">The movie segment being retrieved is <span class="loading">none</span>.</div>
+  <div class="status">The latest movie segment being broadcast is <span class="latest">none</span>.</div>
+  <div class="errors"></div>
+</div>
+</div>
+<div id="video"></div>

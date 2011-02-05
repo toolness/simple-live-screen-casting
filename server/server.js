@@ -13,7 +13,8 @@ var MOVIE_LIFETIME = 30000;
 var STATIC_FILES_DIR = './static-files';
 var INDEX_FILE = '/index.html';
 var STATIC_FILES = {
-  '/index.html': 'text/html'
+  '/index.html': 'text/html',
+  '/jquery.min.js': 'application/javascript'
 };
 
 var inUpdate = false;
@@ -39,6 +40,7 @@ var server = http.createServer(function(req, res) {
     currMovieID = undefined;
     inUpdate = false;
     res.writeHead(200, 'OK', {'Content-Type': 'text/plain'});
+    clients.sendAll("clear");
     res.end('Deleted all streaming data.');
   } else if (path == '/update') {
     if (inUpdate) {
