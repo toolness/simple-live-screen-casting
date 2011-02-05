@@ -12,9 +12,9 @@
 		</object>
 		<object class="NSMutableArray" key="IBDocument.EditedObjectIDs">
 			<bool key="EncodedWithXMLCoder">YES</bool>
-			<integer value="29"/>
 			<integer value="645"/>
 			<integer value="534"/>
+			<integer value="29"/>
 		</object>
 		<object class="NSArray" key="IBDocument.PluginDependencies">
 			<bool key="EncodedWithXMLCoder">YES</bool>
@@ -1322,7 +1322,7 @@
 				<int key="NSWindowBacking">2</int>
 				<string key="NSWindowRect">{{145, -17}, {173, 435}}</string>
 				<int key="NSWTFlags">-1535639552</int>
-				<string key="NSWindowTitle">SimpleCast</string>
+				<string key="NSWindowTitle">DrumCast</string>
 				<string key="NSWindowClass">NSPanel</string>
 				<nil key="NSViewClass"/>
 				<string key="NSWindowContentMaxSize">{1.79769e+308, 1.79769e+308}</string>
@@ -1739,10 +1739,6 @@
 				<string key="NSMaxSize">{1.79769e+308, 1.79769e+308}</string>
 			</object>
 			<object class="NSUserDefaultsController" id="631312698">
-				<object class="NSMutableArray" key="NSDeclaredKeys">
-					<bool key="EncodedWithXMLCoder">YES</bool>
-					<string>EnableCropping</string>
-				</object>
 				<bool key="NSSharedInstance">YES</bool>
 			</object>
 			<object class="NSWindowTemplate" id="688989564">
@@ -1753,6 +1749,7 @@
 				<string key="NSWindowTitle">Crop Area</string>
 				<string key="NSWindowClass">NSPanel</string>
 				<nil key="NSViewClass"/>
+				<string key="NSWindowContentMaxSize">{1.79769e+308, 1.79769e+308}</string>
 				<object class="NSView" key="NSWindowView" id="644025721">
 					<reference key="NSNextResponder"/>
 					<int key="NSvFlags">256</int>
@@ -4647,9 +4644,9 @@
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
-					<string>{{335, 225}, {173, 435}}</string>
+					<string>{{326, 235}, {173, 435}}</string>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
-					<string>{{335, 225}, {173, 435}}</string>
+					<string>{{326, 235}, {173, 435}}</string>
 					<boolean value="YES"/>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
