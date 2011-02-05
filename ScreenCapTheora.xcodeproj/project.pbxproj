@@ -12,6 +12,7 @@
 		8D11072B0486CEB800E47090 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 089C165CFE840E0CC02AAC07 /* InfoPlist.strings */; };
 		8D11072D0486CEB800E47090 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 29B97316FDCFA39411CA2CEA /* main.m */; settings = {ATTRIBUTES = (); }; };
 		8D11072F0486CEB800E47090 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1058C7A1FEA54F0111CA2CBB /* Cocoa.framework */; };
+		B75F8C7C12FD034D000DA55B /* DrumbeatLogo.icns in Resources */ = {isa = PBXBuildFile; fileRef = B75F8C7B12FD034D000DA55B /* DrumbeatLogo.icns */; };
 		EA58FDD512EB93A50069C8A7 /* OpenGL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EA58FDD412EB93A50069C8A7 /* OpenGL.framework */; };
 		EA58FDDD12EB948C0069C8A7 /* Quartz.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EA58FDDC12EB948C0069C8A7 /* Quartz.framework */; };
 		EA58FE2312EBAD150069C8A7 /* FrameReader.m in Sources */ = {isa = PBXBuildFile; fileRef = EA58FE2212EBAD150069C8A7 /* FrameReader.m */; };
@@ -37,6 +38,7 @@
 		29B97325FDCFA39411CA2CEA /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = /System/Library/Frameworks/Foundation.framework; sourceTree = "<absolute>"; };
 		8D1107310486CEB800E47090 /* ScreenCapTheora-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = "ScreenCapTheora-Info.plist"; sourceTree = "<group>"; };
 		8D1107320486CEB800E47090 /* DrumCast.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DrumCast.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		B75F8C7B12FD034D000DA55B /* DrumbeatLogo.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = DrumbeatLogo.icns; sourceTree = "<group>"; };
 		EA58FDD412EB93A50069C8A7 /* OpenGL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenGL.framework; path = System/Library/Frameworks/OpenGL.framework; sourceTree = SDKROOT; };
 		EA58FDDC12EB948C0069C8A7 /* Quartz.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Quartz.framework; path = System/Library/Frameworks/Quartz.framework; sourceTree = SDKROOT; };
 		EA58FE2112EBAD150069C8A7 /* FrameReader.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FrameReader.h; sourceTree = "<group>"; };
@@ -140,6 +142,7 @@
 		29B97317FDCFA39411CA2CEA /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				B75F8C7B12FD034D000DA55B /* DrumbeatLogo.icns */,
 				8D1107310486CEB800E47090 /* ScreenCapTheora-Info.plist */,
 				089C165CFE840E0CC02AAC07 /* InfoPlist.strings */,
 				1DDD58140DA1D0A300B32029 /* MainMenu.xib */,
@@ -228,6 +231,7 @@
 			files = (
 				8D11072B0486CEB800E47090 /* InfoPlist.strings in Resources */,
 				1DDD58160DA1D0A300B32029 /* MainMenu.xib in Resources */,
+				B75F8C7C12FD034D000DA55B /* DrumbeatLogo.icns in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
