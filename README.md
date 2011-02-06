@@ -19,6 +19,7 @@ Once the basics are working, further improvements might include:
 
 * Annotating the picture/video stream with other metadata, such as keys pressed, position of the mouse cursor, etc. This could allow the client-side to display this metadata however the viewer wants, rather than hard-coding it into the movie itself as [ScreenFlow] and other apps do.
 * Allowing viewers to annotate the movie live, pointing at parts of the picture and asking questions or making comments about them.
+* Add some basic recording and content editing functionality to the server-side. This would decouple teacher from movie-maker, allowing someone to teach others how to do something, while another person can take the raw footage and turn it into a more polished screencast.
 * Porting the app to other platforms like Windows and Linux.
 
 # TODOs
