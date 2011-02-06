@@ -1,6 +1,7 @@
 *.mode1v3
 *.perspectivev3
 *.pbxuser
+*.dmg
 .DS_Store
 build
 server/socket.io
