@@ -529,7 +529,7 @@ static CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 	[self setIsRecording:NO];
 	[self setFramesLeft:0];
 
-	mRequestQueue = dispatch_queue_create("com.toolness.requestQueue", NULL);
+	mRequestQueue = dispatch_queue_create("org.mozilla.echoance.requestqueue", NULL);
 	
 	mRecordingMutex = [[NSString alloc] initWithString:@"Recording Mutex"];
 
